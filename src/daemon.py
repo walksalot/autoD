@@ -151,7 +151,7 @@ class PDFFileHandler(FileSystemEventHandler):
 
         logger.info(
             f"New PDF detected: {file_path.name}",
-            extra={"event": "file_detected", "filename": file_path.name},
+            extra={"event": "file_detected", "pdf_filename": file_path.name},
         )
 
         # Wait for file size to stabilize
@@ -163,7 +163,7 @@ class PDFFileHandler(FileSystemEventHandler):
             self.processing_queue.put(file_path)
             logger.info(
                 f"File queued for processing: {file_path.name}",
-                extra={"event": "file_queued", "filename": file_path.name},
+                extra={"event": "file_queued", "pdf_filename": file_path.name},
             )
         else:
             logger.warning(f"File failed stabilization check: {file_path.name}")
@@ -266,7 +266,7 @@ class DaemonManager:
                         f"Queued existing file: {pdf_file.name}",
                         extra={
                             "event": "existing_file_queued",
-                            "filename": pdf_file.name,
+                            "pdf_filename": pdf_file.name,
                         },
                     )
 
@@ -279,7 +279,7 @@ class DaemonManager:
 
                 logger.info(
                     f"Processing: {file_path.name}",
-                    extra={"event": "processing_start", "filename": file_path.name},
+                    extra={"event": "processing_start", "pdf_filename": file_path.name},
                 )
 
                 # Process document using existing pipeline
@@ -298,7 +298,7 @@ class DaemonManager:
                             f"Duplicate detected: {file_path.name} (original ID: {result.duplicate_of})",
                             extra={
                                 "event": "duplicate_detected",
-                                "filename": file_path.name,
+                                "pdf_filename": file_path.name,
                                 "duplicate_of": result.duplicate_of,
                             },
                         )
@@ -312,7 +312,7 @@ class DaemonManager:
                             f"Time: {result.processing_time_seconds:.2f}s)",
                             extra={
                                 "event": "processing_success",
-                                "filename": file_path.name,
+                                "pdf_filename": file_path.name,
                                 "document_id": result.document_id,
                                 "cost_usd": result.cost_usd,
                                 "processing_time": result.processing_time_seconds,
@@ -326,7 +326,7 @@ class DaemonManager:
                         f"Processing failed: {file_path.name} - {result.error}",
                         extra={
                             "event": "processing_failed",
-                            "filename": file_path.name,
+                            "pdf_filename": file_path.name,
                             "error": result.error,
                         },
                     )
