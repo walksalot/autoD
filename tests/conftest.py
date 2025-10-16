@@ -169,24 +169,36 @@ def temp_inbox(tmp_path: Path) -> Path:
 # ==============================================================================
 
 @pytest.fixture
-def mock_openai_client() -> MockResponsesClient:
-    """Create a mock OpenAI client with Responses API.
+def mock_openai_client():
+    """Create a mock OpenAI client with both Responses and Files APIs.
 
-    Returns realistic responses for invoice documents by default.
+    Returns a mock client with:
+    - .responses: MockResponsesClient for Responses API
+    - .files: MockFilesClient for Files API
+
+    This fixture is designed for pipeline tests that need both APIs.
 
     Returns:
-        MockResponsesClient instance
+        Mock object with responses and files attributes
 
     Example:
         def test_api_call(mock_openai_client):
+            # Upload file
+            file_obj = mock_openai_client.files.create(file=sample_pdf)
+
+            # Call Responses API
             response = mock_openai_client.responses.create(
                 model="gpt-5",
                 input=[{"role": "user", "content": [{"type": "input_text", "text": "Extract"}]}]
             )
             assert response.usage.prompt_tokens > 0
-            assert response.output[0].role == "assistant"
     """
-    return MockResponsesClient(default_doc_type="invoice")
+    from unittest.mock import Mock
+
+    client = Mock()
+    client.responses = MockResponsesClient(default_doc_type="invoice").responses
+    client.files = MockFilesClient().files
+    return client
 
 
 @pytest.fixture
