@@ -434,10 +434,19 @@ def main():
     """Main entry point for daemon."""
     config = get_config()
 
-    # Determine inbox path
-    inbox_path = Path(os.getenv("PAPER_AUTOPILOT_INBOX_PATH", "inbox"))
-    processed_path = Path("processed")
-    failed_path = Path("failed")
+    # Determine paths from environment or defaults
+    inbox_path_str = os.getenv("PAPER_AUTOPILOT_INBOX_PATH")
+    if inbox_path_str:
+        inbox_path = Path(inbox_path_str)
+        # Use sibling directories for processed/failed
+        paper_dir = inbox_path.parent
+        processed_path = paper_dir / "Processed"
+        failed_path = paper_dir / "Failed"
+    else:
+        # Fallback to config default
+        inbox_path = config.inbox_path
+        processed_path = Path("processed")
+        failed_path = Path("failed")
 
     logger.info(
         f"Starting Paper Autopilot daemon (v{config.paper_autopilot_version})",

@@ -8,9 +8,12 @@ Files are uploaded with purpose="assistants" to make them available
 for the Responses API.
 """
 
-from src.pipeline import ProcessingStage, ProcessingContext
-from openai import OpenAI
 import logging
+from datetime import datetime, timezone
+
+from openai import OpenAI
+
+from src.pipeline import ProcessingContext, ProcessingStage
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +79,13 @@ class UploadToFilesAPIStage(ProcessingStage):
         # purpose="assistants" makes it available for Responses API
         response = self.client.files.create(
             file=(context.pdf_path.name, context.pdf_bytes, "application/pdf"),
-            purpose="assistants",
+            purpose="user_data",
         )
 
         context.file_id = response.id
+        context.source_file_id = response.id
+        if not context.processed_at:
+            context.processed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
         logger.info(
             f"Upload successful",

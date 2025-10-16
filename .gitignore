@@ -61,3 +61,5 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+# Exclude experimental output logs
+docs/*_output_log_*.txt

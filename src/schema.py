@@ -1,250 +1,351 @@
 """
-JSON Schema definitions for OpenAI Responses API structured outputs.
+Structured output schema for Paper Autopilot.
 
-This module provides strict JSON schemas with `additionalProperties: false`
-for OpenAI structured outputs, ensuring type-safe metadata extraction.
-
-The schema is optimized for:
-- Comprehensive PDF metadata extraction (40+ fields)
-- Strict validation with no extra properties allowed
-- Business intelligence fields (action items, deadlines, urgency)
-- Deduplication support via content signatures
-- OpenAI Responses API compatibility
-
-Schema Version: 1.0.0
+This module defines the JSON Schema used with OpenAI Responses API
+structured outputs.  The schema captures classification, extraction,
+actionability, OCR excerpts, and dedupe fingerprints so downstream
+systems can rely on a consistent contract.
 """
 
-from typing import Dict, Any
+from __future__ import annotations
 
+from copy import deepcopy
+from typing import Any, Dict, Optional
+
+try:
+    import jsonschema  # type: ignore
+except ImportError:  # pragma: no cover - jsonschema is an optional dependency at runtime
+    jsonschema = None
 
 SCHEMA_VERSION = "1.0.0"
+
+_CATEGORIES = [
+    "Financial & Administrative",
+    "Property & Assets",
+    "Personal & Family",
+    "Business & Professional",
+    "Legal & Government",
+    "Household & Lifestyle",
+    "Creative & Miscellaneous",
+]
+
+_SUBCATEGORIES = [
+    "Bills",
+    "Invoices",
+    "Receipts",
+    "Banking",
+    "Taxes",
+    "Investments",
+    "Loans & Mortgages",
+    "Insurance",
+    "Legal",
+    "Government",
+    "Medical",
+    "Education",
+    "Property Management",
+    "Utilities",
+    "Telecom",
+    "Subscriptions",
+    "Payroll",
+    "HR",
+    "Travel",
+    "Vehicle",
+    "Misc",
+]
+
+
+def _base_schema() -> Dict[str, Any]:
+    """Return the base schema (without per-file const overrides)."""
+    return {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "type": "object",
+        "title": "Paper Autopilot Document Metadata",
+        "description": "Structured metadata extracted from a PDF document.",
+        "additionalProperties": False,
+        "properties": {
+            "schema_version": {
+                "type": "string",
+                "description": "Schema version for compatibility tracking.",
+                "enum": [SCHEMA_VERSION],
+            },
+            "processed_date": {
+                "type": "string",
+                "description": "When this document was processed (ISO 8601).",
+                "minLength": 1,
+            },
+            "original_file_name": {
+                "type": "string",
+                "description": "Original filename provided by the user.",
+                "minLength": 1,
+                "maxLength": 255,
+            },
+            "source_file_id": {
+                "type": "string",
+                "description": "OpenAI Files API identifier for the processed file.",
+                "minLength": 1,
+            },
+            # Titles & summaries
+            "title": {"type": ["string", "null"], "maxLength": 512},
+            "brief_description": {"type": ["string", "null"], "maxLength": 512},
+            "long_description": {"type": ["string", "null"], "maxLength": 2048},
+            "summary": {"type": ["string", "null"], "maxLength": 1500},
+            "summary_long": {"type": ["string", "null"], "maxLength": 4096},
+            "email_subject": {"type": ["string", "null"], "maxLength": 512},
+            "email_preview_text": {"type": ["string", "null"], "maxLength": 160},
+            "email_body_markdown": {"type": ["string", "null"], "maxLength": 10000},
+            # Classification
+            "category": {
+                "type": "string",
+                "enum": _CATEGORIES,
+            },
+            "subcategory": {
+                "type": ["string", "null"],
+                "enum": _SUBCATEGORIES + [None],
+            },
+            "doc_type": {
+                "type": ["string", "null"],
+                "maxLength": 256,
+            },
+            "confidence_score": {
+                "type": ["number", "null"],
+                "minimum": 0.0,
+                "maximum": 1.0,
+            },
+            # Parties & dates
+            "issuer": {"type": ["string", "null"], "maxLength": 512},
+            "primary_date": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            },
+            "period_start_date": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            },
+            "period_end_date": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            },
+            # Actionability
+            "key_points": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 512},
+            },
+            "action_items": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "description": {"type": "string", "maxLength": 512},
+                        "assignee_suggestion": {"type": ["string", "null"], "maxLength": 256},
+                        "due": {"type": ["string", "null"], "maxLength": 128},
+                        "priority": {
+                            "type": ["string", "null"],
+                            "enum": ["low", "medium", "high", "critical", None],
+                        },
+                        "blocking": {"type": ["boolean", "null"]},
+                        "rationale": {"type": ["string", "null"], "maxLength": 1024},
+                    },
+                    "required": ["description"],
+                },
+            },
+            "deadline": {"type": ["string", "null"], "maxLength": 128},
+            "deadline_source": {
+                "type": ["string", "null"],
+                "enum": [
+                    "explicit_due_date",
+                    "implied_in_text",
+                    "inferred_from_context",
+                    "none",
+                    None,
+                ],
+            },
+            "urgency_score": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "maximum": 100,
+            },
+            "urgency_reason": {"type": ["string", "null"], "maxLength": 1024},
+            # Extracted fields
+            "extracted_fields": {
+                "type": "object",
+                "additionalProperties": True,
+                "properties": {
+                    "amount_due": {"type": ["number", "null"]},
+                    "due_date": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "account_number": {"type": ["string", "null"], "maxLength": 256},
+                    "invoice_number": {"type": ["string", "null"], "maxLength": 256},
+                    "statement_date": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "period_start_date": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "period_end_date": {
+                        "type": ["string", "null"],
+                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                    },
+                    "balance": {"type": ["number", "null"]},
+                    "currency": {"type": ["string", "null"], "maxLength": 3},
+                    "policy_number": {"type": ["string", "null"], "maxLength": 256},
+                    "claim_number": {"type": ["string", "null"], "maxLength": 256},
+                    "loan_number": {"type": ["string", "null"], "maxLength": 256},
+                    "service_address": {"type": ["string", "null"], "maxLength": 512},
+                    "property_address": {"type": ["string", "null"], "maxLength": 512},
+                    "tax_id": {"type": ["string", "null"], "maxLength": 64},
+                    "customer_name": {"type": ["string", "null"], "maxLength": 256},
+                    "email": {"type": ["string", "null"], "maxLength": 256},
+                    "phone": {"type": ["string", "null"], "maxLength": 64},
+                    "meter_readings": {"type": ["string", "null"], "maxLength": 512},
+                },
+            },
+            # Filing + organization
+            "suggested_file_name": {
+                "type": "string",
+                "description": "Recommended filename (without extension).",
+                "minLength": 1,
+                "maxLength": 150,
+            },
+            "suggested_relative_path": {
+                "type": ["string", "null"],
+                "description": "Recommended relative path for archival.",
+                "maxLength": 1024,
+            },
+            "tags": {
+                "type": "array",
+                "items": {"type": "string", "maxLength": 64},
+            },
+            "language": {
+                "type": ["string", "null"],
+                "description": "ISO 639-1 language code.",
+                "pattern": "^[a-z]{2}$",
+            },
+            "page_count": {
+                "type": ["integer", "null"],
+                "minimum": 1,
+            },
+            # OCR & visual
+            "ocr_text_excerpt": {"type": ["string", "null"], "maxLength": 40000},
+            "ocr_page_summaries": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "page": {"type": "integer", "minimum": 1},
+                        "text_excerpt": {"type": "string", "maxLength": 8000},
+                        "image_description": {"type": "string", "maxLength": 2000},
+                    },
+                    "required": ["page", "text_excerpt", "image_description"],
+                },
+            },
+            # Dedupe / normalization
+            "content_signature": {"type": ["string", "null"], "maxLength": 8192},
+            "cross_doc_matches": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "vector_store_id": {"type": ["string", "null"], "maxLength": 64},
+                        "file_id": {"type": ["string", "null"], "maxLength": 64},
+                        "filename": {"type": ["string", "null"], "maxLength": 255},
+                        "score": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+                        "rationale": {"type": ["string", "null"], "maxLength": 1024},
+                    },
+                    "required": ["score"],
+                },
+            },
+            "normalization": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "canonical_issuer": {"type": ["string", "null"], "maxLength": 256},
+                    "canonical_account_label": {"type": ["string", "null"], "maxLength": 256},
+                    "property_identifier": {"type": ["string", "null"], "maxLength": 256},
+                },
+            },
+            # Diagnostics
+            "errors": {"type": "array", "items": {"type": "string", "maxLength": 512}},
+        },
+        "required": [
+            "schema_version",
+            "processed_date",
+            "original_file_name",
+            "source_file_id",
+            "category",
+            "doc_type",
+            "summary",
+            "suggested_file_name",
+        ],
+    }
 
 
 def get_document_extraction_schema() -> Dict[str, Any]:
     """
-    Generate JSON schema for PDF metadata extraction.
+    Return a deep copy of the base schema.
 
-    This schema is passed to OpenAI Responses API via:
-    {
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "document_metadata",
-                "schema": get_document_extraction_schema(),
-                "strict": true
-            }
-        }
-    }
-
-    The schema enforces strict validation (additionalProperties: false) and
-    includes comprehensive metadata fields for business intelligence,
-    deduplication, and document management. All fields are required but allow
-    null so the model must emit every key while signalling missing data clearly.
+    The caller may mutate the returned dict (e.g., to add const constraints).
     """
-    properties: Dict[str, Any] = {
-        "schema_version": {
-            "type": "string",
-            "description": "Schema version for compatibility tracking",
-            "enum": [SCHEMA_VERSION],
-        },
-        "file_name": {
-            "type": "string",
-            "description": "Original filename from PDF",
-            "minLength": 1,
-            "maxLength": 255,
-        },
-        "page_count": {
-            "type": ["integer", "null"],
-            "description": "Number of pages in document",
-            "minimum": 1,
-        },
-        "doc_type": {
-            "type": "string",
-            "description": "Primary document type classification",
-            "enum": [
-                "Invoice",
-                "Receipt",
-                "BankStatement",
-                "CreditCardStatement",
-                "UtilityBill",
-                "Contract",
-                "Agreement",
-                "Letter",
-                "Form",
-                "Report",
-                "Certificate",
-                "Tax Document",
-                "Insurance Document",
-                "Medical Record",
-                "Legal Document",
-                "Other",
-                "Unknown",
-            ],
-        },
-        "doc_subtype": {
-            "type": ["string", "null"],
-            "description": "More specific document subtype",
-            "maxLength": 100,
-        },
-        "confidence_score": {
-            "type": "number",
-            "description": "Model confidence in classification (0.0-1.0)",
-            "minimum": 0.0,
-            "maximum": 1.0,
-        },
-        "issuer": {
-            "type": ["string", "null"],
-            "description": "Organization or person who issued the document",
-            "maxLength": 255,
-        },
-        "recipient": {
-            "type": ["string", "null"],
-            "description": "Intended recipient of the document",
-            "maxLength": 255,
-        },
-        "primary_date": {
-            "type": ["string", "null"],
-            "description": "Primary date (ISO 8601: YYYY-MM-DD)",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-        },
-        "secondary_date": {
-            "type": ["string", "null"],
-            "description": "Secondary date like due date (ISO 8601: YYYY-MM-DD)",
-            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-        },
-        "total_amount": {
-            "type": ["number", "null"],
-            "description": "Total monetary amount",
-        },
-        "currency": {
-            "type": ["string", "null"],
-            "description": "Currency code (ISO 4217)",
-            "pattern": "^[A-Z]{3}$",
-            "examples": ["USD", "EUR", "GBP"],
-        },
-        "summary": {
-            "type": ["string", "null"],
-            "description": "Brief document summary (max 200 words)",
-            "maxLength": 1500,
-        },
-        "action_items": {
-            "type": "array",
-            "description": "Extracted action items",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["description", "deadline", "priority"],
-                "properties": {
-                    "description": {"type": "string", "maxLength": 500},
-                    "deadline": {
-                        "type": ["string", "null"],
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    },
-                    "priority": {
-                        "type": "string",
-                        "enum": ["low", "medium", "high", "critical"],
-                    },
-                },
-            },
-        },
-        "deadlines": {
-            "type": "array",
-            "description": "Important deadlines",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["date", "description", "type"],
-                "properties": {
-                    "date": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
-                    "description": {"type": "string", "maxLength": 200},
-                    "type": {
-                        "type": "string",
-                        "enum": ["payment", "response", "filing", "renewal", "other"],
-                    },
-                },
-            },
-        },
-        "urgency_level": {
-            "type": ["string", "null"],
-            "description": "Overall urgency assessment",
-            "enum": ["low", "medium", "high", "critical", None],
-        },
-        "tags": {
-            "type": "array",
-            "description": "Relevant tags for categorization",
-            "items": {"type": "string", "maxLength": 50},
-            "maxItems": 20,
-        },
-        "language_detected": {
-            "type": ["string", "null"],
-            "description": "Detected language (ISO 639-1)",
-            "pattern": "^[a-z]{2}$",
-            "examples": ["en", "es", "fr"],
-        },
-        "ocr_text_excerpt": {
-            "type": ["string", "null"],
-            "description": "First 500 characters of text for search",
-            "maxLength": 500,
-        },
-        "extraction_quality": {
-            "type": ["string", "null"],
-            "description": "Quality assessment of extraction",
-            "enum": ["excellent", "good", "fair", "poor", None],
-        },
-        "requires_review": {
-            "type": "boolean",
-            "description": "Whether manual review is needed",
-            "default": False,
-        },
-        "notes": {
-            "type": ["string", "null"],
-            "description": "Additional notes or observations",
-            "maxLength": 1000,
-        },
-    }
+    return deepcopy(_base_schema())
 
-    return {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "type": "object",
-        "title": "Document Metadata Extraction",
-        "description": "Comprehensive metadata extracted from PDF document",
-        "additionalProperties": False,
-        "properties": properties,
-        "required": list(properties.keys()),
+
+def build_schema_with_constants(
+    *,
+    processed_date: str,
+    original_file_name: str,
+    source_file_id: str,
+    base_schema: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """
+    Return a schema with per-file constants baked in.
+
+    Args:
+        processed_date: ISO timestamp string for processed_date.
+        original_file_name: Original filename string.
+        source_file_id: Files API ID to embed.
+        base_schema: Optional schema to clone (defaults to base schema).
+    """
+    schema = deepcopy(base_schema) if base_schema is not None else get_document_extraction_schema()
+    overrides = {
+        "processed_date": processed_date,
+        "original_file_name": original_file_name,
+        "source_file_id": source_file_id,
     }
+    for key, value in overrides.items():
+        schema["properties"][key]["const"] = value
+    return schema
 
 
 def validate_response(response_data: Dict[str, Any]) -> tuple[bool, list[str]]:
     """
-    Validate API response against schema.
-
-    Args:
-        response_data: Parsed JSON response from OpenAI
+    Validate a JSON response against the base schema.
 
     Returns:
-        Tuple of (is_valid, error_messages)
+        (is_valid, errors)
     """
-    try:
-        import jsonschema
-    except ImportError:
+    if jsonschema is None:
         return False, ["jsonschema library not installed. Run: pip install jsonschema>=4.20.0"]
 
     schema = get_document_extraction_schema()
-    errors = []
-
     try:
         jsonschema.validate(instance=response_data, schema=schema)
         return True, []
-    except jsonschema.ValidationError as exc:
-        errors.append(f"Validation error: {exc.message} at {'.'.join(str(p) for p in exc.path)}")
-        return False, errors
-    except jsonschema.SchemaError as exc:
-        errors.append(f"Schema error: {exc.message}")
-        return False, errors
+    except jsonschema.ValidationError as exc:  # type: ignore[attr-defined]
+        path = ".".join(str(part) for part in exc.path)
+        return False, [f"Validation error at {path or '<root>'}: {exc.message}"]
+    except jsonschema.SchemaError as exc:  # type: ignore[attr-defined]
+        return False, [f"Schema error: {exc.message}"]
 
 
-if __name__ == "__main__":
-    import json
-
-    schema = get_document_extraction_schema()
-    print(json.dumps(schema, indent=2))
+__all__ = [
+    "SCHEMA_VERSION",
+    "get_document_extraction_schema",
+    "build_schema_with_constants",
+    "validate_response",
+]

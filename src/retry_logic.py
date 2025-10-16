@@ -88,7 +88,24 @@ def is_retryable_api_error(exception: BaseException) -> bool:
         # Unknown API error - don't retry
         return False
 
-    # Don't retry unknown exceptions
+    # Inspect message for transient cues (rate limit, timeout, overloaded)
+    message = str(exception).lower()
+    transient_markers = [
+        "rate limit",
+        "retry later",
+        "timed out",
+        "timeout",
+        "temporarily unavailable",
+        "server overloaded",
+        "service unavailable",
+        "503",
+        "504",
+    ]
+    if any(marker in message for marker in transient_markers):
+        logger.info("Retryable error inferred from message: %s", message)
+        return True
+
+    # Don't retry unknown exceptions otherwise
     return False
 
 

@@ -5,12 +5,13 @@ Creates Document record in database with all extracted metadata.
 This is the final stage in the pipeline that commits the processed document.
 """
 
-from src.pipeline import ProcessingStage, ProcessingContext
-from src.models import Document
-from sqlalchemy.orm import Session
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 
+from sqlalchemy.orm import Session
+
+from src.models import Document
+from src.pipeline import ProcessingContext, ProcessingStage
 logger = logging.getLogger(__name__)
 
 
@@ -64,6 +65,8 @@ class PersistToDBStage(ProcessingStage):
             raise ValueError("sha256_hex not set")
         if not context.file_id:
             raise ValueError("file_id not set")
+        if context.metadata_json is None:
+            raise ValueError("metadata_json not set - CallResponsesAPIStage must run first")
 
         logger.info(
             f"Creating database record",
@@ -74,15 +77,34 @@ class PersistToDBStage(ProcessingStage):
             },
         )
 
+        metadata = context.metadata_json
+        processed_date_str = metadata.get("processed_date")
+        processed_dt = None
+        if processed_date_str:
+            try:
+                iso_str = processed_date_str.replace("Z", "+00:00")
+                processed_dt = datetime.fromisoformat(iso_str)
+            except ValueError:
+                logger.warning(
+                    "Unable to parse processed_date '%s'; defaulting to now.",
+                    processed_date_str,
+                    extra={"pdf_path": str(context.pdf_path)},
+                )
+                processed_dt = datetime.now(timezone.utc)
+        else:
+            processed_dt = datetime.now(timezone.utc)
+
         # Create Document record
         doc = Document(
             sha256_hex=context.sha256_hex,
+            sha256_base64=context.sha256_base64,
             original_filename=context.pdf_path.name,
+            file_size_bytes=context.metrics.get("file_size_bytes"),
             created_at=datetime.now(timezone.utc),
-            processed_at=datetime.now(timezone.utc),
-            source_file_id=context.file_id,
-            vector_store_file_id=None,  # Will be populated in Workstream 4
-            metadata_json=context.metadata_json or {},
+            processed_at=processed_dt,
+            source_file_id=context.source_file_id or context.file_id,
+            vector_store_file_id=context.vector_store_file_id,
+            metadata_json=metadata,
             status="completed",
             error_message=None,
         )

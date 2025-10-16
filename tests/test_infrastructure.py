@@ -120,8 +120,10 @@ def test_mock_openai_basic(mock_openai_client):
     # Validate metadata JSON
     metadata_text = response.output[0].content[0].text
     metadata = json.loads(metadata_text)
-    assert "doc_type" in metadata
-    assert "file_name" in metadata
+    assert metadata["doc_type"]
+    assert metadata["original_file_name"]
+    assert metadata["source_file_id"]
+    assert metadata["summary"]
 
 
 def test_mock_openai_doc_types(
@@ -145,6 +147,7 @@ def test_mock_openai_doc_types(
         metadata_text = response.output[0].content[0].text
         metadata = json.loads(metadata_text)
         assert metadata["doc_type"] == expected_doc_type
+        assert metadata["original_file_name"].endswith(".pdf")
 
 
 def test_mock_openai_token_tracking():

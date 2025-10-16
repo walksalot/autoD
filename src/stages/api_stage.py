@@ -1,141 +1,151 @@
 """
-OpenAI Responses API call stage.
+Responses API stage.
 
-Calls OpenAI Responses API with the uploaded PDF file to extract metadata.
-Uses structured output (JSON object) to ensure parseable responses.
-
-This stage does NOT implement retry logic - that's Workstream 2.
-This stage does NOT track tokens/cost - that's Workstream 3.
+Builds the structured-output payload, optionally enriches the prompt with
+vector-store context, calls OpenAI Responses API through the resilient
+ResponsesAPIClient wrapper, and stores the parsed metadata + usage stats.
 """
 
-from src.pipeline import ProcessingStage, ProcessingContext
-from openai import OpenAI
-from src.config import get_config
-import logging
+from __future__ import annotations
+
 import json
+import logging
+from datetime import datetime, timezone
+from typing import List, Optional
+
+from src.api_client import ResponsesAPIClient
+from src.pipeline import ProcessingContext, ProcessingStage
+from src.prompts import build_responses_api_payload
+from src.vector_store import VectorStoreManager
 
 logger = logging.getLogger(__name__)
 
 
+def _format_vector_context(matches: List[dict]) -> Optional[str]:
+    """Format vector-search hits into a short prompt-friendly block."""
+    if not matches:
+        return None
+
+    lines = ["Similar documents previously processed:"]
+    for match in matches[:5]:
+        filename = match.get("filename") or match.get("original_file_name") or "unknown.pdf"
+        score = match.get("score")
+        reason = match.get("rationale") or match.get("summary") or ""
+        score_text = f"{score:.2f}" if isinstance(score, (int, float)) else "n/a"
+        lines.append(f"- {filename} (score {score_text}) {reason}".strip())
+    return "\n".join(lines)
+
+
 class CallResponsesAPIStage(ProcessingStage):
     """
-    Call OpenAI Responses API for metadata extraction.
+    Call OpenAI Responses API and parse the structured output.
+
+    Inputs (from context):
+        pdf_path, file_id, sha256_hex, processed_at, source_file_id
 
     Outputs:
-        context.api_response: Full API response dictionary
-        context.metadata_json: Extracted metadata from response
-
-    Example:
-        from openai import OpenAI
-        client = OpenAI(api_key="sk-...")
-
-        stage = CallResponsesAPIStage(client)
-        context = ProcessingContext(
-            pdf_path=Path("inbox/sample.pdf"),
-            file_id="file-abc123..."
-        )
-        result = stage.execute(context)
-
-        print(result.metadata_json)  # {"doc_type": "Invoice", ...}
+        context.metadata_json      -> Parsed structured output
+        context.api_response       -> Raw API response dictionary
+        context.response_usage     -> Token usage dict
+        context.vector_store_id    -> Vector store id (if manager provided)
+        context.vector_search_results -> Similarity hits (if any)
     """
 
-    # Extraction prompt template
-    PROMPT_TEMPLATE = """Extract metadata from this PDF document.
-
-Return a JSON object with these fields:
-- file_name: Original filename
-- doc_type: Document type (UtilityBill, BankStatement, Invoice, Receipt, or Unknown)
-- issuer: Organization or person who issued the document
-- primary_date: Primary date in ISO format YYYY-MM-DD (or null)
-- total_amount: Total monetary amount (numeric or null)
-- summary: Brief summary (max 40 words)
-
-Be precise and concise."""
-
-    def __init__(self, client: OpenAI):
-        """
-        Initialize API call stage with OpenAI client.
-
-        Args:
-            client: Authenticated OpenAI client instance
-        """
-        self.client = client
-        self.config = get_config()
+    def __init__(
+        self,
+        api_client: ResponsesAPIClient,
+        vector_manager: Optional[VectorStoreManager] = None,
+    ) -> None:
+        self.api_client = api_client
+        self.vector_manager = vector_manager
 
     def execute(self, context: ProcessingContext) -> ProcessingContext:
-        """
-        Call OpenAI Responses API to extract metadata from PDF.
-
-        Args:
-            context: Processing context with file_id set
-
-        Returns:
-            Updated context with api_response and metadata_json populated
-
-        Raises:
-            ValueError: If file_id not set (previous stage failed)
-            openai.APIError: If API call fails
-        """
         if not context.file_id:
             raise ValueError("file_id not set - UploadToFilesAPIStage must run first")
 
+        # Ensure processed_at + source_file_id are populated
+        processed_at = context.processed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+        context.processed_at = processed_at
+        context.source_file_id = context.source_file_id or context.file_id
+
+        vector_store_ids: Optional[List[str]] = None
+        vector_context_text: Optional[str] = None
+
+        if self.vector_manager:
+            try:
+                vector_store = self.vector_manager.get_or_create_vector_store()
+                vector_store_id = getattr(vector_store, "id", vector_store)
+                context.vector_store_id = vector_store_id
+                vector_store_ids = [vector_store_id] if vector_store_id else None
+
+                if context.sha256_hex:
+                    matches = self.vector_manager.search_similar_documents(
+                        query=context.sha256_hex,
+                        top_k=3,
+                    )
+                else:
+                    matches = []
+
+                context.vector_search_results = matches
+                vector_context_text = _format_vector_context(matches)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Vector store enrichment failed: %s",
+                    exc,
+                    extra={"pdf_path": str(context.pdf_path)},
+                )
+
+        payload = build_responses_api_payload(
+            filename=context.pdf_path.name,
+            file_id=context.file_id,
+            processed_at=processed_at,
+            original_file_name=context.pdf_path.name,
+            source_file_id=context.source_file_id,
+            vector_store_ids=vector_store_ids,
+            vector_context=vector_context_text,
+            similar_documents_found=bool(vector_context_text),
+            page_count=context.metrics.get("page_count"),
+        )
+
         logger.info(
-            f"Calling Responses API",
+            "Calling Responses API",
             extra={
                 "pdf_path": str(context.pdf_path),
-                "file_id": context.file_id,
-                "model": self.config.openai_model,
+                "model": payload.get("model"),
+                "vector_store_ids": vector_store_ids,
             },
         )
 
-        # Call Responses API with structured output
-        response = self.client.responses.create(
-            model=self.config.openai_model,
-            input=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "input_text", "text": self.PROMPT_TEMPLATE},
-                        {
-                            "type": "input_file",
-                            "filename": context.pdf_path.name,
-                            "file_id": context.file_id,
-                        },
-                    ],
-                }
-            ],
-            text={"format": {"type": "json_object"}},  # Enforce JSON output
-            max_output_tokens=self.config.max_output_tokens,
-            timeout=self.config.api_timeout_seconds,
-        )
+        response_dict = self.api_client.create_response(payload)
+        context.api_response = response_dict
 
-        # Store full response
-        context.api_response = response.model_dump()
+        output_text = self.api_client.extract_output_text(response_dict)
+        try:
+            metadata = json.loads(output_text)
+        except json.JSONDecodeError as exc:
+            logger.error(
+                "Responses API returned invalid JSON: %s",
+                exc,
+                extra={
+                    "pdf_path": str(context.pdf_path),
+                    "raw_text": output_text[:200],
+                },
+            )
+            raise
 
-        # Extract metadata from response
-        # Response structure: response.output[0].content[0].text (JSON string)
-        if response.output and len(response.output) > 0:
-            content = response.output[0].content
-            if content and len(content) > 0:
-                text_content = content[0].text
-                try:
-                    context.metadata_json = json.loads(text_content)
-                except json.JSONDecodeError as e:
-                    logger.warning(
-                        f"Failed to parse metadata JSON: {e}",
-                        extra={
-                            "pdf_path": str(context.pdf_path),
-                            "raw_text": text_content[:200],
-                        },
-                    )
-                    # Store raw text in metadata for debugging
-                    context.metadata_json = {"_raw_text": text_content, "_error": str(e)}
+        context.metadata_json = metadata
+
+        usage = self.api_client.extract_usage(response_dict)
+        context.response_usage = usage
+        context.metrics["usage"] = usage
 
         logger.info(
-            f"API call successful",
+            "Responses API call successful",
             extra={
                 "pdf_path": str(context.pdf_path),
-                "doc_type": context.metadata_json.get("doc_type") if context.metadata_json else None,
+                "doc_type": metadata.get("doc_type"),
+                "tokens_prompt": usage.get("prompt_tokens"),
+                "tokens_output": usage.get("completion_tokens"),
             },
         )
 

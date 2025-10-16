@@ -60,8 +60,14 @@ class ProcessingContext:
         is_duplicate: True if document already exists in database
         existing_doc_id: Database ID of existing document (if duplicate)
         file_id: OpenAI Files API file ID (from upload stage)
+        processed_at: ISO timestamp when processing began
+        source_file_id: File ID echoed into structured output
         api_response: Full API response from Responses API
         metadata_json: Extracted metadata dictionary
+        response_usage: Token usage from API call
+        vector_store_id: Persistent vector store identifier (if used)
+        vector_store_file_id: File ID inside vector store (if attached)
+        vector_search_results: Similar document matches from File Search
         document_id: Database ID of created/updated document
         error: Exception if stage failed
         failed_at_stage: Name of stage where failure occurred
@@ -82,10 +88,16 @@ class ProcessingContext:
 
     # OpenAI Files API (from UploadToFilesAPIStage)
     file_id: Optional[str] = None
+    processed_at: Optional[str] = None
+    source_file_id: Optional[str] = None
 
     # OpenAI Responses API (from CallResponsesAPIStage)
     api_response: Optional[Dict[str, Any]] = None
     metadata_json: Optional[Dict[str, Any]] = None
+    response_usage: Optional[Dict[str, Any]] = None
+    vector_store_id: Optional[str] = None
+    vector_store_file_id: Optional[str] = None
+    vector_search_results: Optional[List[Dict[str, Any]]] = None
 
     # Database (from PersistToDBStage)
     document_id: Optional[int] = None

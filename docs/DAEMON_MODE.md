@@ -1,6 +1,6 @@
-# Daemon Mode — Automatic PDF Processing
+# Paper Autopilot — Setup and Operations Guide
 
-**Purpose**: Setup and operations guide for daemon mode (automatic file watching)
+**Purpose**: Setup and operations guide for automatic PDF processing
 **Audience**: System administrators, DevOps engineers
 **Last Updated**: 2025-10-16
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-Daemon mode enables automatic PDF processing as files arrive from your scanner (e.g., ScanSnap). Instead of manually running `process_inbox.py`, the daemon continuously monitors the inbox folder and processes PDFs automatically.
+Paper Autopilot automatically processes PDFs as they arrive from your scanner (e.g., ScanSnap). The daemon continuously monitors the inbox folder and processes PDFs automatically without any manual intervention.
 
 **Key Features**:
 - **File watching**: Detects new PDFs instantly using filesystem events

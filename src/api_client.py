@@ -300,9 +300,10 @@ class ResponsesAPIClient:
 
 # Example usage
 if __name__ == "__main__":
-    import json
-    from src.prompts import build_responses_api_payload
     import base64
+    import json
+
+    from src.prompts import build_responses_api_payload
 
     print("=== API Client Test ===")
 
@@ -339,7 +340,9 @@ if __name__ == "__main__":
     payload = build_responses_api_payload(
         filename="test.pdf",
         pdf_base64=test_pdf_base64,
-        page_count=1,
+        processed_at="2025-01-01T00:00:00Z",
+        original_file_name="test.pdf",
+        source_file_id="file-test-id",
     )
 
     print(f"✅ Payload built")

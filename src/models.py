@@ -14,14 +14,7 @@ Design Decisions:
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from sqlalchemy import (
-    String,
-    Integer,
-    DateTime,
-    Text,
-    JSON,
-    create_engine,
-)
+from sqlalchemy import String, Integer, DateTime, Text, JSON, create_engine, BigInteger
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -86,10 +79,22 @@ class Document(Base):
         comment="SHA-256 hash in hexadecimal format for deduplication",
     )
 
+    sha256_base64: Mapped[Optional[str]] = mapped_column(
+        String(88),
+        nullable=True,
+        comment="SHA-256 hash encoded in base64 (useful for OpenAI attributes)",
+    )
+
     original_filename: Mapped[str] = mapped_column(
         String(512),
         nullable=False,
         comment="Original PDF filename from inbox",
+    )
+
+    file_size_bytes: Mapped[Optional[int]] = mapped_column(
+        BigInteger,
+        nullable=True,
+        comment="Size of the PDF file in bytes",
     )
 
     # === Timestamps ===
@@ -156,7 +161,9 @@ class Document(Base):
         return {
             "id": self.id,
             "sha256_hex": self.sha256_hex,
+            "sha256_base64": self.sha256_base64,
             "original_filename": self.original_filename,
+            "file_size_bytes": self.file_size_bytes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "processed_at": self.processed_at.isoformat() if self.processed_at else None,
             "source_file_id": self.source_file_id,

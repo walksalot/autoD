@@ -59,15 +59,11 @@ mkdir -p inbox processed failed logs
 # 8. Test with single PDF
 python3 -m src.processor --file test.pdf
 
-# 9. Start production processing
-python3 process_inbox.py
-
-# Alternative: Start daemon for automatic processing
-# See docs/DAEMON_MODE.md for full daemon setup instructions
+# 9. Start the daemon (automatic processing)
 python3 run_daemon.py
 ```
 
-**Note**: For automatic file watching (recommended for ScanSnap integration), see **[Daemon Mode Setup](./DAEMON_MODE.md)** for complete instructions on macOS LaunchAgent and Linux systemd configuration.
+**Note**: Paper Autopilot runs as an automatic daemon that watches for new PDFs. See **[Daemon Mode Setup](./DAEMON_MODE.md)** for complete instructions on macOS LaunchAgent and Linux systemd configuration for automatic startup.
 
 ---
 

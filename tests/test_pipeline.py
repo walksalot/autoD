@@ -24,6 +24,25 @@ from src.stages import (
     PersistToDBStage,
 )
 from src.models import Document
+from src.api_client import ResponsesAPIClient
+
+
+class ResponsesClientStub:
+    """Minimal OpenAI client stub that routes to the mock responses namespace."""
+
+    def __init__(self, mock_client):
+        self._mock = mock_client
+
+    def post(self, path: str, cast_to=dict, body=None):
+        if path != "/v1/responses":
+            raise ValueError(f"Unexpected path: {path}")
+        response = self._mock.responses.create(**(body or {}))
+        # MockResponsesClient returns MockResponse dataclass -> expose as dict
+        if hasattr(response, "model_dump"):
+            return response.model_dump()
+        if hasattr(response, "to_dict"):
+            return response.to_dict()
+        return response
 
 
 def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_client):
@@ -33,12 +52,13 @@ def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_cli
     Validates all 5 stages execute successfully and document is persisted.
     """
     # Build pipeline with all stages
+    responses_api_client = ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(mock_openai_client),
+            CallResponsesAPIStage(responses_api_client),
             PersistToDBStage(db_session),
         ]
     )
@@ -81,7 +101,7 @@ def test_pipeline_deduplication_skip_upload(db_session, sample_pdf_path, existin
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(mock_openai_client),
+            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
             PersistToDBStage(db_session),
         ]
     )
@@ -224,7 +244,7 @@ def test_pipeline_database_commit_on_success(db_session, sample_pdf_path, mock_o
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(mock_openai_client),
+            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
             PersistToDBStage(db_session),
         ]
     )
@@ -357,7 +377,7 @@ def test_full_pipeline_metadata_extraction(db_session, sample_pdf_path, mock_ope
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(mock_openai_client),
+            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
             PersistToDBStage(db_session),
         ]
     )
@@ -367,12 +387,12 @@ def test_full_pipeline_metadata_extraction(db_session, sample_pdf_path, mock_ope
 
     # Verify metadata structure
     assert result.metadata_json is not None
-    assert "file_name" in result.metadata_json
-    assert "doc_type" in result.metadata_json
-    assert "issuer" in result.metadata_json
-    assert "primary_date" in result.metadata_json
-    assert "total_amount" in result.metadata_json
-    assert "summary" in result.metadata_json
+    assert result.metadata_json["original_file_name"]
+    assert result.metadata_json["source_file_id"]
+    assert result.metadata_json["doc_type"]
+    assert result.metadata_json["issuer"]
+    assert "extracted_fields" in result.metadata_json
+    assert result.metadata_json["summary"]
 
     # Verify database has same metadata
     doc = db_session.query(Document).filter_by(id=result.document_id).first()

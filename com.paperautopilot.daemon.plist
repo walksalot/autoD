@@ -22,14 +22,16 @@
     <key>EnvironmentVariables</key>
     <dict>
         <!-- IMPORTANT: Set your OpenAI API key here or load from .env -->
+        <!-- The API key will be loaded from ~/.OPENAI_API_KEY if not set here -->
         <key>OPENAI_API_KEY</key>
-        <string>YOUR_API_KEY_HERE</string>
+        <string></string>
 
         <key>OPENAI_MODEL</key>
         <string>gpt-5-mini</string>
 
+        <!-- Scanner inbox directory -->
         <key>PAPER_AUTOPILOT_INBOX_PATH</key>
-        <string>inbox</string>
+        <string>/Users/krisstudio/Paper/InboxA</string>
 
         <key>PAPER_AUTOPILOT_DB_URL</key>
         <string>sqlite:///paper_autopilot.db</string>

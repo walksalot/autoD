@@ -1,53 +1,216 @@
-# OpenAI Responses PDF Sandbox
+# Paper Autopilot - Automatic Document Processing
 
-This sandbox showcases how to submit PDFs to the OpenAI Responses API using the `/v1/responses` endpoint with `input_file` parts. The goal is to iterate quickly on metadata extraction prompts before folding changes into larger pipelines.
+**Automatic PDF processing from your ScanSnap scanner using OpenAI Responses API**
 
-## Repository Layout
+Paper Autopilot continuously monitors your scanner's inbox folder and automatically processes PDFs as they arrive. No manual intervention needed - just scan your documents and let the autopilot handle the rest.
+
+## What It Does
+
+1. **Watches** your scanner's inbox folder (`/Users/krisstudio/Paper/InboxA`)
+2. **Detects** new PDFs instantly using filesystem events
+3. **Validates** PDF integrity and waits for scanner to finish writing
+4. **Processes** documents using OpenAI Responses API for metadata extraction
+5. **Stores** results in SQLite database with full audit trail
+6. **Uploads** to OpenAI vector store for semantic search
+7. **Moves** processed PDFs to organized folders
+
+## Quick Start
+
+### 1. Install Dependencies
+
+```bash
+# Create and activate virtual environment
+python3 -m venv .venv && source .venv/bin/activate
+
+# Install required packages
+pip install -r requirements.txt
+```
+
+### 2. Configure API Key
+
+The daemon will automatically load your OpenAI API key from `~/.OPENAI_API_KEY`:
+
+```bash
+# Save your API key to the file
+echo "sk-your-actual-key-here" > ~/.OPENAI_API_KEY
+chmod 600 ~/.OPENAI_API_KEY
+```
+
+Or set it as an environment variable:
+
+```bash
+export OPENAI_API_KEY=sk-your-actual-key-here
+```
+
+### 3. Run the Daemon
+
+```bash
+# Start the automatic processing daemon
+python3 run_daemon.py
+```
+
+The daemon will:
+- Create necessary directories if they don't exist
+- Start watching `/Users/krisstudio/Paper/InboxA` for new PDFs
+- Process documents automatically as they arrive
+- Log all activities to `logs/paper_autopilot.log`
+
+### 4. Configure Your Scanner
+
+Set your ScanSnap scanner to save PDFs to:
+```
+/Users/krisstudio/Paper/InboxA
+```
+
+See `docs/scansnap-ix1600-setup.md` for detailed scanner configuration.
+
+## Automatic Startup (macOS)
+
+To have Paper Autopilot start automatically on login:
+
+```bash
+# Copy LaunchAgent plist
+cp com.paperautopilot.daemon.plist ~/Library/LaunchAgents/
+
+# Load and start the daemon
+launchctl load ~/Library/LaunchAgents/com.paperautopilot.daemon.plist
+
+# Verify it's running
+launchctl list | grep paperautopilot
+```
+
+The daemon will now start automatically every time you log in to your Mac.
+
+## Repository Structure
 
 ```
 .
-├── AGENTS.md          # Contributor guide and repo conventions
-├── docs/              # Research notes and API experiments
-├── inbox/             # Drop PDFs here (ignored by git)
-└── process_inbox.py   # Script that submits PDFs to the Responses API
+├── run_daemon.py          # Entry point for automatic daemon
+├── src/
+│   ├── daemon.py          # File watching and automatic processing
+│   ├── processor.py       # Document processing pipeline
+│   ├── config.py          # Configuration management
+│   ├── database.py        # SQLite database operations
+│   ├── api_client.py      # OpenAI Responses API client
+│   └── vector_store.py    # Vector store management
+├── docs/
+│   ├── DAEMON_MODE.md     # Detailed daemon setup guide
+│   ├── RUNBOOK.md         # Production operations guide
+│   └── scansnap-ix1600-setup.md  # Scanner configuration
+└── com.paperautopilot.daemon.plist  # macOS LaunchAgent config
 ```
 
-## Getting Started
+## Configuration
 
-1. Create and activate a virtual environment:
-   ```bash
-   python3 -m venv .venv && source .venv/bin/activate
-   ```
-2. Install dependencies:
-   ```bash
-   python -m pip install -U requests
-   ```
-3. Export your API key (requires access to a vision-capable model such as `gpt-5`):
-   ```bash
-   export OPENAI_API_KEY=sk-...
-   ```
-4. Place PDFs in `inbox/` and run the processor:
-   ```bash
-   python process_inbox.py
-   ```
+All settings can be configured via environment variables:
 
-For each PDF, the script base64-encodes the file, assembles a metadata prompt, and prints the JSON response returned by the model. Add temporary logging inside `process_inbox.py` when troubleshooting; remove it before committing.
+```bash
+# Required
+OPENAI_API_KEY=sk-...              # OpenAI API key
+
+# Paths (defaults shown)
+PAPER_AUTOPILOT_INBOX_PATH=/Users/krisstudio/Paper/InboxA
+PAPER_AUTOPILOT_DB_URL=sqlite:///paper_autopilot.db
+
+# Processing
+OPENAI_MODEL=gpt-5-mini           # gpt-5-mini, gpt-5-nano, gpt-5, gpt-5-pro, gpt-4.1
+API_TIMEOUT_SECONDS=300           # API call timeout (30-600s)
+MAX_RETRIES=5                     # Retry attempts (1-10)
+
+# Logging
+LOG_LEVEL=INFO                    # DEBUG, INFO, WARNING, ERROR
+LOG_FORMAT=json                   # json or text
+```
+
+See `docs/DAEMON_MODE.md` for complete configuration reference.
+
+## Monitoring
+
+View daemon logs in real-time:
+
+```bash
+# Application logs (structured JSON)
+tail -f logs/paper_autopilot.log | jq .
+
+# Daemon stdout
+tail -f logs/daemon_stdout.log
+
+# Daemon errors
+tail -f logs/daemon_stderr.log
+```
+
+Check daemon status:
+
+```bash
+# macOS LaunchAgent
+launchctl list | grep paperautopilot
+
+# View recent activity
+grep "Processing complete" logs/paper_autopilot.log | tail -10
+```
+
+## Folder Organization
+
+```
+/Users/krisstudio/Paper/
+├── InboxA/          # Scanner drops PDFs here
+├── Processed/       # Successfully processed PDFs
+└── Failed/          # PDFs that failed processing
+```
+
+The daemon automatically moves PDFs to the appropriate folder after processing.
+
+## Supported Models
+
+Paper Autopilot uses only OpenAI Frontier models per project requirements:
+
+- `gpt-5-mini` (default) - Fast, cost-efficient
+- `gpt-5-nano` - Fastest, most cost-efficient
+- `gpt-5` - Best for coding and agentic tasks
+- `gpt-5-pro` - Smarter and more precise
+- `gpt-4.1` - Smartest non-reasoning model
+
+**Important**: Never use `gpt-4o` or chat completions models. Paper Autopilot uses only the Responses API endpoint (`/v1/responses`), never chat completions.
+
+## Documentation
+
+- **[Daemon Mode Guide](docs/DAEMON_MODE.md)** - Complete daemon setup and troubleshooting
+- **[Production Runbook](docs/RUNBOOK.md)** - Operations guide for production deployments
+- **[Scanner Setup](docs/scansnap-ix1600-setup.md)** - ScanSnap iX1600 configuration
+- **[Code Architecture](docs/CODE_ARCHITECTURE.md)** - System architecture and design
+- **[Processor Guide](docs/PROCESSOR_GUIDE.md)** - Document processing pipeline details
 
 ## Contributing
 
-Review `AGENTS.md` for project conventions, testing expectations, and security practices. In short, follow PEP 8, run `black process_inbox.py` before review, use `pytest` for any automated coverage, and never commit sample PDFs or raw API responses. Share sanitized excerpts only when needed to illustrate behavior. Keep model selections aligned with `docs/model_policy.md`—do not downgrade from GPT-5 variants without approval.
+Review `AGENTS.md` for project conventions, testing expectations, and security practices. Key points:
 
-### Implementation Plan Reference
+- Follow PEP 8, run `black` before commits
+- Use `pytest` for automated testing
+- Never commit sample PDFs or raw API responses
+- Keep model selections aligned with Frontier models only
+- Run policy checks before PRs:
+  ```bash
+  python scripts/check_model_policy.py --diff
+  pytest tests/test_model_policy.py
+  ```
 
-The end-to-end architecture, retry strategy, vector-store setup, and database plan are detailed in `docs/initial_implementation_plan.md`. Read it before building new features so prompt structure, structured outputs, and cost tracking stay aligned with the intended workflow.
+## Architecture
 
-### Policy Checks
+Paper Autopilot implements a production-grade document processing pipeline:
 
-Before opening a pull request, run:
+1. **File Watching**: Real-time detection with filesystem events (watchdog library)
+2. **File Stabilization**: Handles scanner's phased writes (waits for OCR completion)
+3. **Deduplication**: SHA-256 hash-based duplicate detection
+4. **Processing Pipeline**: Responses API → Schema Validation → Database Storage
+5. **Vector Search**: Automatic upload to OpenAI vector store
+6. **Audit Trail**: Complete processing history with costs and timing
+7. **Error Handling**: Automatic retries with exponential backoff
 
-```bash
-python scripts/check_model_policy.py --diff
-pytest tests/test_model_policy.py
-```
+## License
 
-Both commands will fail loudly if deprecated model identifiers surface.
+See LICENSE file for details.
+
+---
+
+**Maintained By**: Platform Engineering Team
+**Version**: 1.0.0

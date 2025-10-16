@@ -1,26 +1,14 @@
-"""Mock implementation of OpenAI Responses API for testing.
+"""Mock implementation of OpenAI Responses API for testing."""
 
-This module provides a complete mock of the OpenAI Responses API that:
-- Returns realistic response objects with usage statistics
-- Supports different document types (Invoice, Receipt, etc.)
-- Allows configurable token counts for cost testing
-- Can simulate various error conditions
-
-Example usage:
-    from tests.mocks.mock_openai import MockResponsesClient, create_mock_response
-
-    # Create mock client
-    client = MockResponsesClient(default_doc_type="invoice")
-
-    # Use in tests
-    response = client.responses.create(model="gpt-5", input=[...])
-    assert response.usage.prompt_tokens > 0
-"""
+from __future__ import annotations
 
 import json
-from typing import Dict, Any, Optional, List, Callable
+import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional
+
+from src.schema import SCHEMA_VERSION
 
 
 @dataclass
@@ -80,13 +68,15 @@ class MockResponse:
             "usage": self.usage.__dict__(),
             "output": [
                 {
+                    "id": f"item-{idx}",
+                    "type": "message",
                     "role": out.role,
                     "content": [
                         {"type": item.type, "text": item.text}
                         for item in out.content
                     ]
                 }
-                for out in self.output
+                for idx, out in enumerate(self.output)
             ]
         }
 
@@ -98,6 +88,110 @@ class MockResponse:
         Pydantic models used by the real OpenAI SDK.
         """
         return self.to_dict()
+
+
+_CATEGORY_MAP = {
+    "Invoice": ("Financial & Administrative", "Invoices"),
+    "Receipt": ("Financial & Administrative", "Receipts"),
+    "UtilityBill": ("Financial & Administrative", "Utilities"),
+    "BankStatement": ("Financial & Administrative", "Banking"),
+    "CreditCardStatement": ("Financial & Administrative", "Banking"),
+    "Contract": ("Business & Professional", "Legal"),
+    "Insurance": ("Financial & Administrative", "Insurance"),
+}
+
+
+def _slug(value: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", value.strip())
+    return slug.strip("-") or "document"
+
+
+def _build_metadata(doc_type: str, filename: str, overrides: Dict[str, Any]) -> Dict[str, Any]:
+    category, subcategory = _CATEGORY_MAP.get(
+        doc_type,
+        ("Financial & Administrative", "Misc"),
+    )
+    processed_date = overrides.get("processed_date", "2025-01-01T00:00:00Z")
+    issuer = overrides.get("issuer") or "Mock Issuer"
+    summary = overrides.get("summary") or f"{doc_type or 'Document'} summary."
+    suggested_name = overrides.get(
+        "suggested_file_name",
+        f"{processed_date.split('T')[0]} – {issuer} – {doc_type or 'Document'}",
+    )
+    suggested_name_ascii = suggested_name.encode("ascii", "ignore").decode().strip() or "document"
+    original_file = overrides.get("original_file_name") or overrides.get("file_name") or filename
+
+    base_metadata: Dict[str, Any] = {
+        "schema_version": SCHEMA_VERSION,
+        "processed_date": processed_date,
+        "original_file_name": original_file,
+        "source_file_id": overrides.get("source_file_id", "file-mock-id"),
+        "title": overrides.get("title"),
+        "brief_description": overrides.get("brief_description"),
+        "long_description": overrides.get("long_description"),
+        "summary": summary,
+        "summary_long": overrides.get("summary_long"),
+        "email_subject": overrides.get("email_subject"),
+        "email_preview_text": overrides.get("email_preview_text"),
+        "email_body_markdown": overrides.get("email_body_markdown"),
+        "category": overrides.get("category", category),
+        "subcategory": overrides.get("subcategory", subcategory),
+        "doc_type": overrides.get("doc_type", doc_type),
+        "confidence_score": overrides.get("confidence_score", 0.92),
+        "issuer": issuer,
+        "primary_date": overrides.get("primary_date"),
+        "period_start_date": overrides.get("period_start_date"),
+        "period_end_date": overrides.get("period_end_date"),
+        "key_points": overrides.get("key_points") or [f"{doc_type or 'Document'} processed for archival."],
+        "action_items": overrides.get("action_items")
+        or [
+            {
+                "description": "Review and archive the document.",
+                "assignee_suggestion": None,
+                "due": None,
+                "priority": "medium",
+                "blocking": False,
+                "rationale": None,
+            }
+        ],
+        "deadline": overrides.get("deadline"),
+        "deadline_source": overrides.get("deadline_source", "none"),
+        "urgency_score": overrides.get("urgency_score", 40),
+        "urgency_reason": overrides.get("urgency_reason"),
+        "extracted_fields": overrides.get("extracted_fields") or {},
+        "suggested_file_name": suggested_name_ascii[:150],
+        "suggested_relative_path": overrides.get(
+            "suggested_relative_path",
+            f"{category}/{_slug(doc_type or 'Document').replace('-', ' ')}",
+        ),
+        "tags": overrides.get("tags")
+        or [
+            (doc_type or "document").lower(),
+            _slug(issuer).lower(),
+        ],
+        "language": overrides.get("language", "en"),
+        "page_count": overrides.get("page_count", 1),
+        "ocr_text_excerpt": overrides.get("ocr_text_excerpt") or summary[:200],
+        "ocr_page_summaries": overrides.get("ocr_page_summaries")
+        or [
+            {
+                "page": 1,
+                "text_excerpt": (overrides.get("ocr_text_excerpt") or summary)[:8000],
+                "image_description": "Synthetic page summary for testing.",
+            }
+        ],
+        "content_signature": overrides.get("content_signature", "mock-content-signature"),
+        "cross_doc_matches": overrides.get("cross_doc_matches") or [],
+        "normalization": overrides.get("normalization")
+        or {
+            "canonical_issuer": issuer,
+            "canonical_account_label": overrides.get("canonical_account_label"),
+            "property_identifier": overrides.get("property_identifier"),
+        },
+        "errors": overrides.get("errors") or [],
+    }
+
+    return base_metadata
 
 
 def load_metadata_fixture(doc_type: str) -> Dict[str, Any]:
@@ -145,12 +239,17 @@ def create_mock_response(
         >>> assert response.usage.prompt_tokens == 500
         >>> assert response.usage.output_tokens == 100
         >>> # Extract metadata
-        >>> metadata_text = response.output[0].content[0]["text"]
+        >>> metadata_text = response.output[0].content[0].text
         >>> metadata = json.loads(metadata_text)
         >>> assert metadata["doc_type"] == "Invoice"
     """
     # Load the fixture for this document type
     metadata = load_metadata_fixture(doc_type)
+    synthesized = _build_metadata(
+        doc_type=metadata.get("doc_type", doc_type),
+        filename=metadata.get("original_file_name", f"{doc_type or 'document'}.pdf"),
+        overrides=metadata,
+    )
 
     # Create usage statistics
     usage = UsageStats(
@@ -167,7 +266,7 @@ def create_mock_response(
             content=[
                 ContentItem(
                     type="output_text",
-                    text=json.dumps(metadata, indent=2)
+                    text=json.dumps(synthesized, indent=2)
                 )
             ]
         )
