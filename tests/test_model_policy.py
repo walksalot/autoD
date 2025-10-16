@@ -33,6 +33,8 @@ def test_python_sources_do_not_reference_deprecated_models():
         Path("config/models.py"),  # central allow/deny list
         Path("src/config.py"),     # config module validates and rejects deprecated models
         Path("src/token_counter.py"),  # token counter needs to support all models for accurate counting
+        Path("src/cost_calculator.py"),  # cost calculator needs pricing for all models
+        Path("tests/unit/test_cost_calculator.py"),  # Cost calculator tests need all models for pricing tests
     }
     # Token counter module needs to support all models for accurate counting
     allowed_prefixes = (
@@ -40,7 +42,6 @@ def test_python_sources_do_not_reference_deprecated_models():
         Path("tests/unit/test_encoding.py"),
         Path("tests/unit/test_primitives.py"),
         Path("tests/unit/test_config.py"),  # Config tests may reference models in test data
-        Path("tests/unit/test_cost_calculator.py"),  # Cost calculator tests need all models for pricing tests
         Path("tests/integration"),
         Path("examples"),  # Example code may reference models for demonstration
     )
