@@ -9,7 +9,7 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any, Dict, Union
 import uuid
 
 
@@ -30,17 +30,20 @@ class JSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        # Add correlation ID if present
-        if hasattr(record, "correlation_id"):
-            log_data["correlation_id"] = record.correlation_id
-
         # Add exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        # Add any extra fields
-        if hasattr(record, "extra"):
-            log_data["extra"] = record.extra
+        # Add extra context from logger.info(..., extra={...})
+        # These fields are automatically extracted when present
+        extra_fields = [
+            "pdf_path", "sha256_hex", "doc_id", "stage",
+            "duration_ms", "cost_usd", "prompt_tokens", "output_tokens",
+            "is_duplicate", "status", "file_size_bytes", "correlation_id"
+        ]
+        for field in extra_fields:
+            if hasattr(record, field):
+                log_data[field] = getattr(record, field)
 
         return json.dumps(log_data)
 
@@ -90,6 +93,7 @@ def setup_logging(
     file_handler.setLevel(getattr(logging, log_level.upper()))
 
     # Choose formatter
+    formatter: Union[JSONFormatter, logging.Formatter]
     if log_format == "json":
         formatter = JSONFormatter()
     else:
