@@ -1,5 +1,11 @@
 # Paper Autopilot - Automatic Document Processing
 
+[![CI](https://github.com/krisstudio/autoD/actions/workflows/ci.yml/badge.svg)](https://github.com/krisstudio/autoD/actions/workflows/ci.yml)
+[![Pre-commit](https://github.com/krisstudio/autoD/actions/workflows/pre-commit.yml/badge.svg)](https://github.com/krisstudio/autoD/actions/workflows/pre-commit.yml)
+[![codecov](https://codecov.io/gh/krisstudio/autoD/branch/main/graph/badge.svg)](https://codecov.io/gh/krisstudio/autoD)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
 **Automatic PDF processing from your ScanSnap scanner using OpenAI Responses API**
 
 Paper Autopilot continuously monitors your scanner's inbox folder and automatically processes PDFs as they arrive. No manual intervention needed - just scan your documents and let the autopilot handle the rest.

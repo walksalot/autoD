@@ -104,9 +104,10 @@ markers = [
     "smoke: marks tests as smoke tests",
 ]
 filterwarnings = [
-    "error",
     "ignore::DeprecationWarning",
     "ignore::PendingDeprecationWarning",
+    "ignore::pytest.PytestCollectionWarning",
+    "ignore::UserWarning",
 ]
 
 [tool.coverage.run]

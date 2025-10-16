@@ -11,9 +11,9 @@ from openai import RateLimitError, APIConnectionError, APIError, Timeout
 from src.retry_logic import is_retryable_api_error, call_openai_with_retry
 
 
-# Test exception classes that mimic OpenAI exceptions
-class TestRateLimitError(RateLimitError):
-    """Test version of RateLimitError for unit testing."""
+# Mock exception classes that mimic OpenAI exceptions
+class MockRateLimitError(RateLimitError):
+    """Mock version of RateLimitError for unit testing."""
 
     def __init__(self, message="rate limit"):
         self.message = message
@@ -21,16 +21,16 @@ class TestRateLimitError(RateLimitError):
         Exception.__init__(self, message)
 
 
-class TestAPIConnectionError(APIConnectionError):
-    """Test version of APIConnectionError for unit testing."""
+class MockAPIConnectionError(APIConnectionError):
+    """Mock version of APIConnectionError for unit testing."""
 
     def __init__(self, message="connection error"):
         self.message = message
         Exception.__init__(self, message)
 
 
-class TestTimeout(Timeout):
-    """Test version of Timeout for unit testing."""
+class MockTimeout(Timeout):
+    """Mock version of Timeout for unit testing."""
 
     def __init__(self, message="timeout"):
         self.message = message
@@ -38,8 +38,8 @@ class TestTimeout(Timeout):
         self.args = (message,)
 
 
-class TestAPIError(APIError):
-    """Test version of APIError with configurable status_code."""
+class MockAPIError(APIError):
+    """Mock version of APIError with configurable status_code."""
 
     def __init__(self, message: str, status_code: int):
         self.message = message
@@ -163,7 +163,7 @@ class TestCallOpenaiWithRetry:
 
         # First call raises RateLimitError, second succeeds
         mock_client.responses.create.side_effect = [
-            TestRateLimitError("rate limit"),
+            MockRateLimitError("rate limit"),
             mock_response,
         ]
 
@@ -189,7 +189,7 @@ class TestCallOpenaiWithRetry:
 
         # First call times out, second succeeds
         mock_client.responses.create.side_effect = [
-            TestTimeout("timeout"),
+            MockTimeout("timeout"),
             mock_response,
         ]
 
@@ -210,7 +210,7 @@ class TestCallOpenaiWithRetry:
         mock_client = Mock()
         mock_response = {"output": [{"role": "assistant", "content": "success"}]}
 
-        error = TestAPIError("server error", 500)
+        error = MockAPIError("server error", 500)
 
         # First call returns 500, second succeeds
         mock_client.responses.create.side_effect = [error, mock_response]
@@ -231,10 +231,10 @@ class TestCallOpenaiWithRetry:
         """Should fail immediately on 400 error without retrying."""
         mock_client = Mock()
 
-        error = TestAPIError("bad request", 400)
+        error = MockAPIError("bad request", 400)
         mock_client.responses.create.side_effect = error
 
-        with pytest.raises(TestAPIError) as exc_info:
+        with pytest.raises(MockAPIError) as exc_info:
             call_openai_with_retry(
                 mock_client, model="gpt-5", input=[{"role": "user", "content": "test"}]
             )
@@ -246,10 +246,10 @@ class TestCallOpenaiWithRetry:
         """Should fail immediately on 401 error without retrying."""
         mock_client = Mock()
 
-        error = TestAPIError("unauthorized", 401)
+        error = MockAPIError("unauthorized", 401)
         mock_client.responses.create.side_effect = error
 
-        with pytest.raises(TestAPIError) as exc_info:
+        with pytest.raises(MockAPIError) as exc_info:
             call_openai_with_retry(
                 mock_client, model="gpt-5", input=[{"role": "user", "content": "test"}]
             )
@@ -262,14 +262,14 @@ class TestCallOpenaiWithRetry:
         mock_client = Mock()
 
         # All attempts fail with rate limit
-        mock_client.responses.create.side_effect = TestRateLimitError("rate limit")
+        mock_client.responses.create.side_effect = MockRateLimitError("rate limit")
 
         # Speed up retry for testing
         monkeypatch.setattr(
             "src.retry_logic.wait_exponential", lambda **kwargs: lambda x: 0.01
         )
 
-        with pytest.raises(TestRateLimitError):
+        with pytest.raises(MockRateLimitError):
             call_openai_with_retry(
                 mock_client, model="gpt-5", input=[{"role": "user", "content": "test"}]
             )
@@ -283,7 +283,7 @@ class TestCallOpenaiWithRetry:
 
         # First call fails with connection error, second succeeds
         mock_client.responses.create.side_effect = [
-            TestAPIConnectionError("connection lost"),
+            MockAPIConnectionError("connection lost"),
             mock_response,
         ]
 

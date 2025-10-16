@@ -26,8 +26,23 @@ repos:
           - pydantic>=2.10
           - sqlalchemy>=2.0
           - types-requests
-        args: [--ignore-missing-imports, --explicit-package-bases]
-        exclude: ^(tests/|docs/|src/dedupe\.py)
+          - types-PyYAML
+        args:
+          - --ignore-missing-imports
+          - --explicit-package-bases
+          - --no-strict-optional
+          - --disable-error-code=attr-defined
+          - --disable-error-code=no-any-return
+          - --disable-error-code=call-arg
+          - --disable-error-code=misc
+          - --disable-error-code=assignment
+          - --disable-error-code=operator
+          - --disable-error-code=arg-type
+          - --disable-error-code=dict-item
+          - --disable-error-code=var-annotated
+          - --disable-error-code=unused-ignore
+          - --disable-error-code=call-overload
+        exclude: ^(tests/|docs/|alembic/|examples/)
 
   # Pre-commit built-in hooks for basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

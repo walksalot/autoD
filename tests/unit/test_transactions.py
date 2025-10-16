@@ -15,8 +15,8 @@ from src.transactions import compensating_transaction
 Base = declarative_base()
 
 
-class TestDocument(Base):
-    """Test model for transaction testing."""
+class MockDocument(Base):
+    """Mock model for transaction testing."""
 
     __tablename__ = "test_documents"
     id = Column(Integer, primary_key=True)
@@ -42,11 +42,11 @@ class TestCompensatingTransaction:
         compensation_fn = Mock()
 
         with compensating_transaction(db_session, compensate_fn=compensation_fn):
-            doc = TestDocument(name="test-doc")
+            doc = MockDocument(name="test-doc")
             db_session.add(doc)
 
         # Verify commit succeeded
-        result = db_session.query(TestDocument).filter_by(name="test-doc").first()
+        result = db_session.query(MockDocument).filter_by(name="test-doc").first()
         assert result is not None
         assert result.name == "test-doc"
 
@@ -59,12 +59,12 @@ class TestCompensatingTransaction:
 
         with pytest.raises(ValueError):
             with compensating_transaction(db_session, compensate_fn=compensation_fn):
-                doc = TestDocument(name="will-fail")
+                doc = MockDocument(name="will-fail")
                 db_session.add(doc)
                 raise ValueError("Simulated database error")
 
         # Verify rollback occurred (doc should not exist)
-        result = db_session.query(TestDocument).filter_by(name="will-fail").first()
+        result = db_session.query(MockDocument).filter_by(name="will-fail").first()
         assert result is None
 
         # Compensation should have been called
@@ -76,7 +76,7 @@ class TestCompensatingTransaction:
 
         with pytest.raises(ValueError) as exc_info:
             with compensating_transaction(db_session, compensate_fn=compensation_fn):
-                doc = TestDocument(name="test")
+                doc = MockDocument(name="test")
                 db_session.add(doc)
                 raise ValueError("Original error")
 
@@ -96,7 +96,7 @@ class TestCompensatingTransaction:
             with compensating_transaction(
                 db_session, compensate_fn=failing_compensation
             ):
-                doc = TestDocument(name="test")
+                doc = MockDocument(name="test")
                 db_session.add(doc)
                 raise ValueError("Original transaction error")
 
@@ -108,13 +108,13 @@ class TestCompensatingTransaction:
         """When no compensation function provided, rollback still works."""
         with pytest.raises(ValueError):
             with compensating_transaction(db_session, compensate_fn=None):
-                doc = TestDocument(name="no-compensation")
+                doc = MockDocument(name="no-compensation")
                 db_session.add(doc)
                 raise ValueError("Error without compensation")
 
         # Verify rollback occurred
         result = (
-            db_session.query(TestDocument).filter_by(name="no-compensation").first()
+            db_session.query(MockDocument).filter_by(name="no-compensation").first()
         )
         assert result is None
 
@@ -132,7 +132,7 @@ class TestCompensatingTransaction:
             with compensating_transaction(
                 db_session, compensate_fn=cleanup_external_file
             ):
-                doc = TestDocument(name="external-ref")
+                doc = MockDocument(name="external-ref")
                 db_session.add(doc)
                 # Simulate failure after external resource created
                 raise RuntimeError("Failed to commit after file upload")
@@ -145,13 +145,13 @@ class TestCompensatingTransaction:
         compensation_fn = Mock()
 
         with compensating_transaction(db_session, compensate_fn=compensation_fn):
-            doc1 = TestDocument(name="doc1")
-            doc2 = TestDocument(name="doc2")
-            doc3 = TestDocument(name="doc3")
+            doc1 = MockDocument(name="doc1")
+            doc2 = MockDocument(name="doc2")
+            doc3 = MockDocument(name="doc3")
             db_session.add_all([doc1, doc2, doc3])
 
         # Verify all operations committed
-        results = db_session.query(TestDocument).all()
+        results = db_session.query(MockDocument).all()
         assert len(results) == 3
         assert {doc.name for doc in results} == {"doc1", "doc2", "doc3"}
 
@@ -171,7 +171,7 @@ class TestCompensatingTransaction:
             with compensating_transaction(
                 db_session, compensate_fn=complex_compensation
             ):
-                doc = TestDocument(name="complex")
+                doc = MockDocument(name="complex")
                 db_session.add(doc)
                 raise Exception("Complex failure")
 

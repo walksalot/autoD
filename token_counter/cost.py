@@ -28,7 +28,7 @@ from typing import Any, Dict
 import yaml
 
 from .exceptions import ConfigurationError
-from .models import CostEstimate
+from .models import CostEstimate, TokenCount
 
 
 class CostCalculator:
