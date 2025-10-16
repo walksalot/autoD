@@ -45,10 +45,17 @@ class UsageStats:
 
 
 @dataclass
+class ContentItem:
+    """Simulates a content item with text attribute for API compatibility."""
+    type: str
+    text: str
+
+
+@dataclass
 class ResponseOutput:
     """Simulates OpenAI Responses API output structure."""
     role: str
-    content: List[Dict[str, str]]
+    content: List[ContentItem]
 
 
 @dataclass
@@ -74,7 +81,10 @@ class MockResponse:
             "output": [
                 {
                     "role": out.role,
-                    "content": out.content
+                    "content": [
+                        {"type": item.type, "text": item.text}
+                        for item in out.content
+                    ]
                 }
                 for out in self.output
             ]
@@ -155,10 +165,10 @@ def create_mock_response(
         ResponseOutput(
             role="assistant",
             content=[
-                {
-                    "type": "output_text",
-                    "text": json.dumps(metadata, indent=2)
-                }
+                ContentItem(
+                    type="output_text",
+                    text=json.dumps(metadata, indent=2)
+                )
             ]
         )
     ]
