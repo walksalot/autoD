@@ -1,0 +1,103 @@
+# Message overhead configuration for token counting
+# Defines model-specific overhead constants for accurate token estimation
+# Version: 1.0
+
+version: "1.0"
+
+# Default overhead values (used when model-specific not available)
+defaults:
+  tokens_per_message: 3  # Overhead per message in conversation
+  tokens_per_name: 1     # Additional overhead when 'name' field is present
+  reply_priming: 3       # Tokens reserved for priming assistant reply
+
+# Model family-specific overrides
+# Some models have different overhead characteristics
+model_families:
+  gpt-5:
+    tokens_per_message: 3
+    tokens_per_name: 1
+    reply_priming: 3
+    tool_overhead:
+      init: 7              # Initial overhead for tool definitions
+      per_tool: 3          # Additional overhead per tool
+      per_property: 3      # Overhead per property in tool schema
+      enum_overhead: 3     # Additional overhead for enum properties
+
+  gpt-5-mini:
+    tokens_per_message: 3
+    tokens_per_name: 1
+    reply_priming: 3
+    tool_overhead:
+      init: 7
+      per_tool: 3
+      per_property: 3
+      enum_overhead: 3
+
+  gpt-4o:
+    tokens_per_message: 3
+    tokens_per_name: 1
+    reply_priming: 3
+    tool_overhead:
+      init: 7
+      per_tool: 3
+      per_property: 3
+      enum_overhead: 3
+
+  gpt-4:
+    tokens_per_message: 3
+    tokens_per_name: 1
+    reply_priming: 3
+    tool_overhead:
+      init: 10             # GPT-4 has higher tool overhead
+      per_tool: 3
+      per_property: 3
+      enum_overhead: 3
+
+  gpt-3.5-turbo:
+    tokens_per_message: 4  # Older models have slightly different overhead
+    tokens_per_name: -1    # GPT-3.5-turbo subtracts 1 for name field
+    reply_priming: 3
+    tool_overhead:
+      init: 10
+      per_tool: 3
+      per_property: 3
+      enum_overhead: 3
+
+# Pattern-based matching for model variants
+# If exact model name doesn't match, these patterns are tried
+pattern_matches:
+  - pattern: "^gpt-5"
+    family: gpt-5
+  - pattern: "^gpt-5-mini"
+    family: gpt-5-mini
+  - pattern: "^gpt-4o"
+    family: gpt-4o
+  - pattern: "^gpt-4"
+    family: gpt-4
+  - pattern: "^gpt-3\\.5-turbo"
+    family: gpt-3.5-turbo
+
+# API-specific configurations
+api_formats:
+  responses:
+    supported_roles:
+      - system
+      - developer  # Responses API specific
+      - user
+      - assistant
+    content_types:
+      - input_text
+      - input_file
+      - output_text
+
+  chat:
+    supported_roles:
+      - system
+      - user
+      - assistant
+      - function  # Legacy function calling
+      - tool      # New tool calling
+    content_types:
+      - text
+      - image_url
+      - input_audio

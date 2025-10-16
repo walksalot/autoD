@@ -1,0 +1,117 @@
+# Model Encoding Configuration
+# Maps OpenAI model names to tiktoken encodings
+#
+# Version: 1.0
+# Last Updated: 2025-10-16
+
+version: "1.0"
+last_updated: "2025-10-16"
+
+# Exact model name mappings (highest priority)
+# These are checked first for exact string matches
+exact_matches:
+  # GPT-5 series (o200k_base encoding)
+  gpt-5: o200k_base
+  gpt-5-mini: o200k_base
+  gpt-5-nano: o200k_base
+  gpt-5-pro: o200k_base
+
+  # GPT-4o series (o200k_base encoding)
+  gpt-4o: o200k_base
+  gpt-4o-mini: o200k_base
+  gpt-4o-2024-08-06: o200k_base
+  gpt-4o-mini-2024-07-18: o200k_base
+
+  # GPT-4.1 series (cl100k_base encoding)
+  gpt-4.1: cl100k_base
+  gpt-4.1-mini: cl100k_base
+  gpt-4.1-nano: cl100k_base
+
+  # GPT-4 series (cl100k_base encoding)
+  gpt-4: cl100k_base
+  gpt-4-turbo: cl100k_base
+  gpt-4-0314: cl100k_base
+  gpt-4-32k-0314: cl100k_base
+  gpt-4-0613: cl100k_base
+  gpt-4-32k-0613: cl100k_base
+  gpt-4-turbo-preview: cl100k_base
+
+  # GPT-3.5 series (cl100k_base encoding)
+  gpt-3.5-turbo: cl100k_base
+  gpt-3.5-turbo-0125: cl100k_base
+  gpt-3.5-turbo-16k: cl100k_base
+
+# Pattern-based fallbacks (regex matching)
+# Checked if no exact match found
+# Patterns are evaluated in order, first match wins
+pattern_matches:
+  - pattern: "^gpt-5"
+    encoding: o200k_base
+    description: "GPT-5 series models"
+
+  - pattern: "^gpt-4o"
+    encoding: o200k_base
+    description: "GPT-4o series models"
+
+  - pattern: "^gpt-4\\.1"
+    encoding: cl100k_base
+    description: "GPT-4.1 series models"
+
+  - pattern: "^gpt-4"
+    encoding: cl100k_base
+    description: "GPT-4 series models"
+
+  - pattern: "^gpt-3\\.5"
+    encoding: cl100k_base
+    description: "GPT-3.5 series models"
+
+  - pattern: "^text-davinci-003"
+    encoding: p50k_base
+    description: "Codex models"
+
+  - pattern: "^text-davinci-002"
+    encoding: p50k_base
+    description: "Codex models"
+
+  - pattern: "^davinci"
+    encoding: r50k_base
+    description: "GPT-3 davinci models"
+
+# Default fallback encoding
+# Used when no exact match or pattern match is found
+default_encoding: o200k_base
+
+# Encoding metadata (for reference and logging)
+encoding_metadata:
+  o200k_base:
+    description: "GPT-5, GPT-4o series"
+    vocab_size: 200000
+    common_models:
+      - gpt-5
+      - gpt-5-mini
+      - gpt-4o
+      - gpt-4o-mini
+
+  cl100k_base:
+    description: "GPT-4, GPT-4.1, GPT-3.5-turbo series"
+    vocab_size: 100000
+    common_models:
+      - gpt-4
+      - gpt-4.1
+      - gpt-3.5-turbo
+
+  p50k_base:
+    description: "Codex models, text-davinci-002/003"
+    vocab_size: 50000
+    common_models:
+      - text-davinci-002
+      - text-davinci-003
+
+  r50k_base:
+    description: "GPT-3 models (davinci, curie, babbage, ada)"
+    vocab_size: 50000
+    common_models:
+      - davinci
+      - curie
+      - babbage
+      - ada
