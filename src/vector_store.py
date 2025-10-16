@@ -12,7 +12,6 @@ once the vector stores API is available in the SDK.
 
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import json
 import time
 from openai import OpenAI
 
@@ -141,13 +140,10 @@ class VectorStoreManager:
             try:
                 # First, upload file
                 with open(file_path, "rb") as f:
-                    file_obj = self.client.files.create(
-                        file=f,
-                        purpose="assistants"
-                    )
+                    file_obj = self.client.files.create(file=f, purpose="assistants")
 
                 # Then add to vector store with metadata
-                vector_store_file = self.client.beta.vector_stores.files.create(
+                _vector_store_file = self.client.beta.vector_stores.files.create(
                     vector_store_id=self.vector_store_id,
                     file_id=file_obj.id,
                     # Note: metadata is set on file object, not vector store file
@@ -158,7 +154,7 @@ class VectorStoreManager:
 
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait_time = 2 ** attempt  # Exponential backoff
+                    wait_time = 2**attempt  # Exponential backoff
                     print(f"⚠️ Upload failed (attempt {attempt + 1}/{max_retries}): {e}")
                     print(f"   Retrying in {wait_time}s...")
                     time.sleep(wait_time)
@@ -195,7 +191,7 @@ class VectorStoreManager:
         # For now, return empty list as placeholder
         # Full implementation requires Assistant + Thread + Messages setup
 
-        print(f"🔍 Vector search not yet fully implemented")
+        print("🔍 Vector search not yet fully implemented")
         print(f"   Query: {query}")
         print(f"   Top K: {top_k}")
 
@@ -257,7 +253,6 @@ if __name__ == "__main__":
     from src.dedupe import build_vector_store_attributes
     from src.models import Document
     from datetime import datetime
-    import tempfile
 
     print("=== Vector Store Manager Test ===")
     print("NOTE: Vector stores API not available in current SDK version")
@@ -267,7 +262,7 @@ if __name__ == "__main__":
     print("Test 1: Manager initialization")
     try:
         manager = VectorStoreManager()
-        print(f"✅ Manager initialized")
+        print("✅ Manager initialized")
         print(f"   Config loaded: {manager.config.vector_store_name}")
         print(f"   Client ready: {manager.client is not None}")
     except Exception as e:
@@ -296,7 +291,7 @@ if __name__ == "__main__":
             print(f"   {key}: {value}")
 
         if len(metadata) <= 16:
-            print(f"✅ Attribute count within OpenAI limit (≤16)")
+            print("✅ Attribute count within OpenAI limit (≤16)")
         else:
             print(f"❌ Too many attributes: {len(metadata)} > 16")
     except Exception as e:
@@ -332,11 +327,11 @@ if __name__ == "__main__":
     interface_ok = True
 
     required_methods = [
-        'get_or_create_vector_store',
-        'add_file_to_vector_store',
-        'search_similar_documents',
-        'cleanup_orphaned_files',
-        'rebuild_vector_store',
+        "get_or_create_vector_store",
+        "add_file_to_vector_store",
+        "search_similar_documents",
+        "cleanup_orphaned_files",
+        "rebuild_vector_store",
     ]
 
     for method in required_methods:

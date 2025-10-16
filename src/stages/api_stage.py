@@ -28,7 +28,9 @@ def _format_vector_context(matches: List[dict]) -> Optional[str]:
 
     lines = ["Similar documents previously processed:"]
     for match in matches[:5]:
-        filename = match.get("filename") or match.get("original_file_name") or "unknown.pdf"
+        filename = (
+            match.get("filename") or match.get("original_file_name") or "unknown.pdf"
+        )
         score = match.get("score")
         reason = match.get("rationale") or match.get("summary") or ""
         score_text = f"{score:.2f}" if isinstance(score, (int, float)) else "n/a"
@@ -64,7 +66,9 @@ class CallResponsesAPIStage(ProcessingStage):
             raise ValueError("file_id not set - UploadToFilesAPIStage must run first")
 
         # Ensure processed_at + source_file_id are populated
-        processed_at = context.processed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+        processed_at = context.processed_at or datetime.now(timezone.utc).isoformat(
+            timespec="seconds"
+        )
         context.processed_at = processed_at
         context.source_file_id = context.source_file_id or context.file_id
 

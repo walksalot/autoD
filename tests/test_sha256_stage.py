@@ -15,7 +15,9 @@ from src.stages.sha256_stage import ComputeSHA256Stage
 from src.pipeline import ProcessingContext
 
 
-def test_compute_sha256_from_file(empty_context, sample_pdf_bytes, sample_sha256_hex, sample_sha256_base64):
+def test_compute_sha256_from_file(
+    empty_context, sample_pdf_bytes, sample_sha256_hex, sample_sha256_base64
+):
     """
     Test SHA-256 computation from PDF file on disk.
 
@@ -36,7 +38,9 @@ def test_compute_sha256_from_file(empty_context, sample_pdf_bytes, sample_sha256
     assert result.metrics["file_size_bytes"] == len(sample_pdf_bytes)
 
 
-def test_compute_sha256_with_existing_bytes(context_with_hash, sample_sha256_hex, sample_sha256_base64):
+def test_compute_sha256_with_existing_bytes(
+    context_with_hash, sample_sha256_hex, sample_sha256_base64
+):
     """
     Test SHA-256 computation when pdf_bytes already set.
 
@@ -77,6 +81,7 @@ def test_sha256_base64_format(empty_context):
     assert len(result.sha256_base64) == 44
     # Base64 alphabet: A-Z, a-z, 0-9, +, /, =
     import string
+
     valid_chars = string.ascii_letters + string.digits + "+/="
     assert all(c in valid_chars for c in result.sha256_base64)
 
@@ -136,7 +141,10 @@ def test_empty_file_produces_valid_hash(tmp_path):
     result = stage.execute(context)
 
     # SHA-256 of empty string is e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-    assert result.sha256_hex == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    assert (
+        result.sha256_hex
+        == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    )
     assert result.metrics["file_size_bytes"] == 0
 
 
@@ -205,7 +213,9 @@ def test_hash_matches_known_value():
     # Create context with known bytes
     known_bytes = b"test content"
     expected_hex = hashlib.sha256(known_bytes).hexdigest()
-    expected_base64 = base64.b64encode(hashlib.sha256(known_bytes).digest()).decode("ascii")
+    expected_base64 = base64.b64encode(hashlib.sha256(known_bytes).digest()).decode(
+        "ascii"
+    )
 
     context = ProcessingContext(
         pdf_path=Path("test.pdf"),  # Path doesn't matter since bytes are set

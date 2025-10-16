@@ -58,7 +58,9 @@ class ComputeSHA256Stage(ProcessingStage):
 
         # Store both hex and base64 formats
         context.sha256_hex = h.hexdigest()  # 64 chars: "abc123..."
-        context.sha256_base64 = base64.b64encode(digest).decode("ascii")  # 44 chars: "qwER..."
+        context.sha256_base64 = base64.b64encode(digest).decode(
+            "ascii"
+        )  # 44 chars: "qwER..."
 
         # Track file size metric
         context.metrics["file_size_bytes"] = len(context.pdf_bytes)

@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def compensating_transaction(session: Session, compensate_fn: Optional[Callable] = None):
+def compensating_transaction(
+    session: Session, compensate_fn: Optional[Callable] = None
+):
     """
     Context manager providing compensation logic if commit fails.
 

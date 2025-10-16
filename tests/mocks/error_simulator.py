@@ -18,14 +18,14 @@ Example usage:
     counter()  # Returns None (success)
 """
 
-from typing import Optional, Callable, Any
-from unittest.mock import Mock
+from typing import Optional, Callable
 
 
 # Mock OpenAI error classes for testing
 # These simulate the actual OpenAI SDK exception types
 class RateLimitError(Exception):
     """Simulates openai.RateLimitError (HTTP 429)."""
+
     def __init__(self, message: str = "Rate limit exceeded"):
         super().__init__(message)
         self.status_code = 429
@@ -33,18 +33,21 @@ class RateLimitError(Exception):
 
 class APIConnectionError(Exception):
     """Simulates openai.APIConnectionError (network connectivity issues)."""
+
     def __init__(self, message: str = "Connection error"):
         super().__init__(message)
 
 
 class Timeout(Exception):
     """Simulates openai.Timeout (request timed out)."""
+
     def __init__(self, message: str = "Request timed out"):
         super().__init__(message)
 
 
 class APIError(Exception):
     """Simulates openai.APIError with configurable status code."""
+
     def __init__(self, message: str = "API error", status_code: int = 500):
         super().__init__(message)
         self.status_code = status_code
@@ -52,6 +55,7 @@ class APIError(Exception):
 
 class AuthenticationError(Exception):
     """Simulates openai.AuthenticationError (HTTP 401)."""
+
     def __init__(self, message: str = "Invalid API key"):
         super().__init__(message)
         self.status_code = 401
@@ -59,6 +63,7 @@ class AuthenticationError(Exception):
 
 class BadRequestError(Exception):
     """Simulates openai.BadRequestError (HTTP 400)."""
+
     def __init__(self, message: str = "Bad request"):
         super().__init__(message)
         self.status_code = 400
@@ -66,7 +71,10 @@ class BadRequestError(Exception):
 
 # Error simulation functions
 
-def simulate_rate_limit(message: str = "Rate limit exceeded, please retry after 60 seconds") -> None:
+
+def simulate_rate_limit(
+    message: str = "Rate limit exceeded, please retry after 60 seconds",
+) -> None:
     """Raise a RateLimitError to simulate hitting OpenAI rate limits.
 
     Args:
@@ -114,10 +122,7 @@ def simulate_connection_error(message: str = "Connection refused by server") -> 
     raise APIConnectionError(message)
 
 
-def simulate_api_error(
-    status_code: int = 500,
-    message: Optional[str] = None
-) -> None:
+def simulate_api_error(status_code: int = 500, message: Optional[str] = None) -> None:
     """Raise an APIError with a specific HTTP status code.
 
     Use this to simulate server-side errors (5xx) or client errors (4xx).
@@ -235,7 +240,7 @@ class RandomErrorSimulator:
         self,
         error_probability: float,
         error_fn: Callable[[], None],
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
     ):
         """Initialize random error simulator.
 

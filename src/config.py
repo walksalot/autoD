@@ -267,7 +267,11 @@ class Config(BaseSettings):
             String representation with API key redacted
         """
         # Redact API key
-        key_preview = f"{self.openai_api_key[:7]}...{self.openai_api_key[-4:]}" if len(self.openai_api_key) > 20 else "***"
+        key_preview = (
+            f"{self.openai_api_key[:7]}...{self.openai_api_key[-4:]}"
+            if len(self.openai_api_key) > 20
+            else "***"
+        )
 
         # Redact database password if present
         db_url = self.paper_autopilot_db_url
@@ -402,7 +406,7 @@ if __name__ == "__main__":
         print("❌ FAIL: Should have rejected gpt-4o")
         print("   Issue: gpt-4o is explicitly forbidden per project requirements")
     except Exception as e:
-        print(f"✅ PASS: Rejected invalid model")
+        print("✅ PASS: Rejected invalid model")
         print(f"   Error type: {type(e).__name__}")
         print(f"   Error message: {str(e)[:150]}...")
         test_results["invalid_model_rejected"] = True
@@ -419,9 +423,9 @@ if __name__ == "__main__":
         print("❌ FAIL: Config should be frozen")
         print("   Issue: Config was modified after instantiation")
     except Exception as e:
-        print(f"✅ PASS: Config is immutable")
+        print("✅ PASS: Config is immutable")
         print(f"   Error type: {type(e).__name__}")
-        print(f"   Cannot modify frozen config")
+        print("   Cannot modify frozen config")
         test_results["config_is_immutable"] = True
 
     # Test 5: Singleton pattern
@@ -449,8 +453,10 @@ if __name__ == "__main__":
         os.environ["ENVIRONMENT"] = env
         reset_config()
         config = get_config()
-        print(f"   {env}: is_production={config.is_production}, "
-              f"is_staging={config.is_staging}, is_development={config.is_development}")
+        print(
+            f"   {env}: is_production={config.is_production}, "
+            f"is_staging={config.is_staging}, is_development={config.is_development}"
+        )
 
     # Test 7: Numeric constraints
     print("\n[Test 7] Numeric constraints validation...")
@@ -462,7 +468,7 @@ if __name__ == "__main__":
         config = Config()
         print("❌ FAIL: Should reject timeout > 600")
     except Exception as e:
-        print(f"✅ PASS: Rejected invalid timeout")
+        print("✅ PASS: Rejected invalid timeout")
         print(f"   Error: {str(e)[:100]}...")
 
     # Final Summary

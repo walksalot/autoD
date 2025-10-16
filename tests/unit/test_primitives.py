@@ -84,9 +84,7 @@ class TestCountMessageTokensChatAPI:
     def test_message_with_name_field(self, o200k_encoding):
         """Test that 'name' field adds extra tokens."""
         messages_without_name = [{"role": "user", "content": "Hello"}]
-        messages_with_name = [
-            {"role": "user", "name": "Alice", "content": "Hello"}
-        ]
+        messages_with_name = [{"role": "user", "name": "Alice", "content": "Hello"}]
 
         count_without = count_message_tokens_chat_api(
             messages_without_name, o200k_encoding
@@ -274,9 +272,7 @@ class TestCountToolDefinitionTokens:
             }
         ]
 
-        count_with = count_tool_definition_tokens(
-            tools_with_period, o200k_encoding
-        )
+        count_with = count_tool_definition_tokens(tools_with_period, o200k_encoding)
         count_without = count_tool_definition_tokens(
             tools_without_period, o200k_encoding
         )

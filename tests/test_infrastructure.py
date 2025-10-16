@@ -16,12 +16,12 @@ Usage:
 import pytest
 import json
 import hashlib
-from pathlib import Path
 
 
 # ==============================================================================
 # Test Utilities Validation
 # ==============================================================================
+
 
 def test_create_test_pdf(sample_pdf):
     """Test PDF creation utility."""
@@ -63,7 +63,7 @@ def test_all_metadata_fixtures(
     receipt_metadata,
     utility_bill_metadata,
     bank_statement_metadata,
-    unknown_metadata
+    unknown_metadata,
 ):
     """Test that all metadata fixtures load correctly."""
     assert invoice_metadata["doc_type"] == "Invoice"
@@ -93,14 +93,17 @@ def test_known_hashes(known_hashes, tmp_path):
 # Mock OpenAI Responses API Validation
 # ==============================================================================
 
+
 def test_mock_openai_basic(mock_openai_client):
     """Test basic mock OpenAI Responses API functionality."""
     response = mock_openai_client.responses.create(
         model="gpt-5",
-        input=[{
-            "role": "user",
-            "content": [{"type": "input_text", "text": "Extract metadata"}]
-        }]
+        input=[
+            {
+                "role": "user",
+                "content": [{"type": "input_text", "text": "Extract metadata"}],
+            }
+        ],
     )
 
     # Validate response structure
@@ -131,7 +134,7 @@ def test_mock_openai_doc_types(
     mock_openai_receipt,
     mock_openai_utility_bill,
     mock_openai_bank_statement,
-    mock_openai_unknown
+    mock_openai_unknown,
 ):
     """Test mock clients for different document types."""
     clients = [
@@ -139,7 +142,7 @@ def test_mock_openai_doc_types(
         (mock_openai_receipt, "Receipt"),
         (mock_openai_utility_bill, "UtilityBill"),
         (mock_openai_bank_statement, "BankStatement"),
-        (mock_openai_unknown, "Unknown")
+        (mock_openai_unknown, "Unknown"),
     ]
 
     for client, expected_doc_type in clients:
@@ -155,9 +158,7 @@ def test_mock_openai_token_tracking():
     from tests.mocks.mock_openai import create_mock_client_with_custom_tokens
 
     client = create_mock_client_with_custom_tokens(
-        prompt_tokens=5000,
-        output_tokens=1000,
-        cached_tokens=500
+        prompt_tokens=5000, output_tokens=1000, cached_tokens=500
     )
 
     response = client.responses.create(model="gpt-5", input=[])
@@ -170,6 +171,7 @@ def test_mock_openai_token_tracking():
 # ==============================================================================
 # Mock Files API Validation
 # ==============================================================================
+
 
 def test_mock_files_upload(mock_files_client, sample_pdf):
     """Test mock file upload functionality."""
@@ -203,7 +205,7 @@ def test_mock_files_delete(mock_files_client, sample_pdf):
     # Delete file
     result = mock_files_client.files.delete(uploaded.id)
 
-    assert result["deleted"] == True
+    assert result["deleted"]
     assert result["id"] == uploaded.id
 
     # Verify file is gone
@@ -233,6 +235,7 @@ def test_mock_files_list(mock_files_client, sample_pdf, tmp_path):
 # Mock Vector Store API Validation
 # ==============================================================================
 
+
 def test_mock_vector_store_create(mock_vector_store_client):
     """Test vector store creation."""
     vs = mock_vector_store_client.vector_stores.create(name="test-store")
@@ -249,8 +252,7 @@ def test_mock_vector_store_file_attach(mock_vector_store_client):
 
     # Attach file
     vs_file = mock_vector_store_client.vector_stores.files.create(
-        vector_store_id=vs.id,
-        file_id="file-123"
+        vector_store_id=vs.id, file_id="file-123"
     )
 
     assert vs_file.id.startswith("vsfile-")
@@ -264,19 +266,14 @@ def test_mock_vector_store_file_update(mock_vector_store_client):
     # Create vector store and attach file
     vs = mock_vector_store_client.vector_stores.create(name="test-store")
     vs_file = mock_vector_store_client.vector_stores.files.create(
-        vector_store_id=vs.id,
-        file_id="file-123"
+        vector_store_id=vs.id, file_id="file-123"
     )
 
     # Update attributes
     updated = mock_vector_store_client.vector_stores.files.update(
         vector_store_id=vs.id,
         file_id=vs_file.id,
-        attributes={
-            "sha256": "abc123",
-            "doc_type": "Invoice",
-            "filename": "test.pdf"
-        }
+        attributes={"sha256": "abc123", "doc_type": "Invoice", "filename": "test.pdf"},
     )
 
     assert updated.attributes is not None
@@ -289,17 +286,14 @@ def test_mock_vector_store_attribute_limit(mock_vector_store_client):
     """Test that only 16 attributes are stored (OpenAI limit)."""
     vs = mock_vector_store_client.vector_stores.create(name="test-store")
     vs_file = mock_vector_store_client.vector_stores.files.create(
-        vector_store_id=vs.id,
-        file_id="file-123"
+        vector_store_id=vs.id, file_id="file-123"
     )
 
     # Try to update with 20 attributes
     attrs = {f"attr_{i}": f"value_{i}" for i in range(20)}
 
     updated = mock_vector_store_client.vector_stores.files.update(
-        vector_store_id=vs.id,
-        file_id=vs_file.id,
-        attributes=attrs
+        vector_store_id=vs.id, file_id=vs_file.id, attributes=attrs
     )
 
     # Should only have 16 attributes
@@ -309,6 +303,7 @@ def test_mock_vector_store_attribute_limit(mock_vector_store_client):
 # ==============================================================================
 # Error Simulator Validation
 # ==============================================================================
+
 
 def test_error_simulator_rate_limit():
     """Test rate limit error simulation."""
@@ -340,7 +335,11 @@ def test_error_simulator_api_error():
 
 def test_error_after_n_calls():
     """Test ErrorAfterNCalls helper."""
-    from tests.mocks.error_simulator import ErrorAfterNCalls, simulate_rate_limit, RateLimitError
+    from tests.mocks.error_simulator import (
+        ErrorAfterNCalls,
+        simulate_rate_limit,
+        RateLimitError,
+    )
 
     counter = ErrorAfterNCalls(2, lambda: simulate_rate_limit())
 
@@ -371,6 +370,7 @@ def test_mock_client_with_errors():
 # Database Fixtures Validation
 # ==============================================================================
 
+
 def test_db_session_fixture(db_session):
     """Test in-memory database session."""
     # Import model - note: this will fail until src/models.py exists
@@ -388,6 +388,7 @@ def test_db_session_isolation(db_session):
 # ==============================================================================
 # Combined API Fixtures Validation
 # ==============================================================================
+
 
 def test_mock_all_apis_fixture(mock_all_apis, sample_pdf):
     """Test combined API fixture with all services."""
@@ -408,6 +409,7 @@ def test_mock_all_apis_fixture(mock_all_apis, sample_pdf):
 # Fixture Isolation Tests
 # ==============================================================================
 
+
 def test_fixture_isolation_sample_pdf_1(sample_pdf):
     """First test using sample_pdf fixture."""
     assert sample_pdf.name == "sample.pdf"
@@ -424,16 +426,12 @@ def test_fixture_isolation_sample_pdf_2(sample_pdf):
 # Test Infrastructure Summary
 # ==============================================================================
 
+
 def test_infrastructure_summary():
     """Summary test to verify all components are importable."""
     # Test utilities
-    from tests.utils import create_test_pdf, load_metadata_fixture, assert_document_equal
 
     # Mocks
-    from tests.mocks.mock_openai import MockResponsesClient
-    from tests.mocks.mock_files_api import MockFilesClient
-    from tests.mocks.mock_vector_store import MockVectorStoreClient
-    from tests.mocks.error_simulator import simulate_rate_limit
 
     # All imports successful
     assert True, "All test infrastructure components are importable"

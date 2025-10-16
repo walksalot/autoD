@@ -12,7 +12,6 @@ Validates:
 import pytest
 from datetime import datetime, timezone
 from src.stages.dedupe_stage import DedupeCheckStage
-from src.pipeline import ProcessingContext
 from src.models import Document
 
 
@@ -30,7 +29,9 @@ def test_no_duplicate_when_database_empty(test_db_session, context_with_hash):
     assert result.existing_doc_id is None
 
 
-def test_duplicate_detected_when_hash_exists(test_db_session, context_with_hash, existing_document):
+def test_duplicate_detected_when_hash_exists(
+    test_db_session, context_with_hash, existing_document
+):
     """
     Test duplicate is detected when SHA-256 hash already exists.
 
@@ -81,7 +82,9 @@ def test_requires_sha256_hex_in_context(test_db_session, empty_context):
         stage.execute(empty_context)
 
 
-def test_duplicate_detection_ignores_filename(test_db_session, context_with_hash, sample_sha256_hex):
+def test_duplicate_detection_ignores_filename(
+    test_db_session, context_with_hash, sample_sha256_hex
+):
     """
     Test deduplication is based on hash, not filename.
 
@@ -104,7 +107,9 @@ def test_duplicate_detection_ignores_filename(test_db_session, context_with_hash
     assert result.existing_doc_id == same_hash_doc.id
 
 
-def test_duplicate_detection_ignores_status(test_db_session, context_with_hash, sample_sha256_hex):
+def test_duplicate_detection_ignores_status(
+    test_db_session, context_with_hash, sample_sha256_hex
+):
     """
     Test deduplication finds documents regardless of status.
 
@@ -128,7 +133,9 @@ def test_duplicate_detection_ignores_status(test_db_session, context_with_hash, 
     assert result.existing_doc_id == failed_doc.id
 
 
-def test_finds_first_duplicate_when_multiple_exist(test_db_session, context_with_hash, sample_sha256_hex):
+def test_finds_first_duplicate_when_multiple_exist(
+    test_db_session, context_with_hash, sample_sha256_hex
+):
     """
     Test stage returns first duplicate when multiple exist (edge case).
 
@@ -191,7 +198,9 @@ def test_database_transaction_not_modified(test_db_session, context_with_hash):
     assert initial_count == final_count  # No new documents created
 
 
-def test_case_sensitive_hash_comparison(test_db_session, context_with_hash, sample_sha256_hex):
+def test_case_sensitive_hash_comparison(
+    test_db_session, context_with_hash, sample_sha256_hex
+):
     """
     Test SHA-256 comparison is case-sensitive.
 
@@ -227,7 +236,9 @@ def test_null_sha256_in_database_does_not_match(test_db_session, context_with_ha
     pass  # Cannot create NULL sha256_hex due to database constraint
 
 
-def test_idempotency_running_twice(test_db_session, context_with_hash, existing_document):
+def test_idempotency_running_twice(
+    test_db_session, context_with_hash, existing_document
+):
     """
     Test running stage twice on same context produces same result.
 

@@ -41,7 +41,10 @@ from typing import Generator
 from tests.utils import create_test_pdf, load_metadata_fixture
 
 # Import mocks
-from tests.mocks.mock_openai import MockResponsesClient, create_mock_client_with_doc_type
+from tests.mocks.mock_openai import (
+    MockResponsesClient,
+    create_mock_client_with_doc_type,
+)
 from tests.mocks.mock_files_api import MockFilesClient
 from tests.mocks.mock_vector_store import MockVectorStoreClient
 
@@ -49,6 +52,7 @@ from tests.mocks.mock_vector_store import MockVectorStoreClient
 # ==============================================================================
 # Database Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def db_session() -> Generator:
@@ -104,6 +108,7 @@ def test_db_session(db_session) -> Generator:
 # ==============================================================================
 # PDF Generation Fixtures
 # ==============================================================================
+
 
 @pytest.fixture
 def sample_pdf(tmp_path: Path) -> Path:
@@ -179,6 +184,7 @@ def temp_inbox(tmp_path: Path) -> Path:
 # Mock OpenAI Client Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def mock_openai_client():
     """Create a mock OpenAI client with both Responses and Files APIs.
@@ -204,7 +210,7 @@ def mock_openai_client():
             )
             assert response.usage.prompt_tokens > 0
     """
-    from unittest.mock import Mock, MagicMock
+    from unittest.mock import Mock
 
     # Create full client instances
     responses_client = MockResponsesClient(default_doc_type="invoice")
@@ -305,6 +311,7 @@ def mock_vector_store_client() -> MockVectorStoreClient:
 # Metadata Fixture Loaders
 # ==============================================================================
 
+
 @pytest.fixture
 def invoice_metadata() -> dict:
     """Load expected invoice metadata from fixture.
@@ -349,6 +356,7 @@ def unknown_metadata() -> dict:
 # Known Hash Fixtures
 # ==============================================================================
 
+
 @pytest.fixture
 def known_hashes() -> dict:
     """Get dictionary of known SHA-256 hashes for test content.
@@ -365,12 +373,14 @@ def known_hashes() -> dict:
             assert actual == known_hashes["test"]
     """
     from tests.utils import KNOWN_HASHES
+
     return KNOWN_HASHES
 
 
 # ==============================================================================
 # Combined Mock Client Fixture
 # ==============================================================================
+
 
 @pytest.fixture
 def mock_all_apis():
@@ -396,13 +406,14 @@ def mock_all_apis():
     return {
         "responses": MockResponsesClient(default_doc_type="invoice"),
         "files": MockFilesClient(),
-        "vector_stores": MockVectorStoreClient()
+        "vector_stores": MockVectorStoreClient(),
     }
 
 
 # ==============================================================================
 # Pipeline-Specific Fixtures (from Workstream 1)
 # ==============================================================================
+
 
 @pytest.fixture
 def sample_pdf_bytes():
@@ -440,6 +451,7 @@ def sample_sha256_hex(sample_pdf_bytes):
         str: 64-character hex string
     """
     import hashlib
+
     return hashlib.sha256(sample_pdf_bytes).hexdigest()
 
 
@@ -452,6 +464,7 @@ def sample_sha256_base64(sample_pdf_bytes):
     """
     import hashlib
     import base64
+
     digest = hashlib.sha256(sample_pdf_bytes).digest()
     return base64.b64encode(digest).decode("ascii")
 
@@ -464,17 +477,21 @@ def empty_context(sample_pdf_path):
         ProcessingContext: Context with only pdf_path set
     """
     from src.pipeline import ProcessingContext
+
     return ProcessingContext(pdf_path=sample_pdf_path)
 
 
 @pytest.fixture
-def context_with_hash(sample_pdf_path, sample_pdf_bytes, sample_sha256_hex, sample_sha256_base64):
+def context_with_hash(
+    sample_pdf_path, sample_pdf_bytes, sample_sha256_hex, sample_sha256_base64
+):
     """Create ProcessingContext with SHA-256 hash computed.
 
     Returns:
         ProcessingContext: Context with pdf_bytes and hashes set
     """
     from src.pipeline import ProcessingContext
+
     return ProcessingContext(
         pdf_path=sample_pdf_path,
         pdf_bytes=sample_pdf_bytes,
@@ -529,6 +546,7 @@ def sample_metadata_json():
 # Pytest Configuration
 # ==============================================================================
 
+
 def pytest_configure(config):
     """Configure pytest with custom markers.
 
@@ -537,6 +555,8 @@ def pytest_configure(config):
         - integration: Mark test as integration test
         - unit: Mark test as unit test
     """
-    config.addinivalue_line("markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')")
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (deselect with '-m \"not slow\"')"
+    )
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")

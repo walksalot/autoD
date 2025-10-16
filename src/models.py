@@ -14,7 +14,7 @@ Design Decisions:
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from sqlalchemy import String, Integer, DateTime, Text, JSON, create_engine, BigInteger
+from sqlalchemy import String, DateTime, Text, JSON, create_engine, BigInteger
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -29,9 +29,7 @@ class Base(DeclarativeBase):
 
     # Use generic JSON type for cross-database compatibility
     # This works on both SQLite and PostgreSQL
-    type_annotation_map = {
-        Dict[str, Any]: JSON
-    }
+    type_annotation_map = {Dict[str, Any]: JSON}
 
 
 class Document(Base):
@@ -165,7 +163,9 @@ class Document(Base):
             "original_filename": self.original_filename,
             "file_size_bytes": self.file_size_bytes,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "processed_at": self.processed_at.isoformat() if self.processed_at else None,
+            "processed_at": (
+                self.processed_at.isoformat() if self.processed_at else None
+            ),
             "source_file_id": self.source_file_id,
             "vector_store_file_id": self.vector_store_file_id,
             "metadata_json": self.metadata_json,

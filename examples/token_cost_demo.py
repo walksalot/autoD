@@ -21,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from token_counter import EncodingResolver, ResponsesAPICalculator
 from src.cost_calculator import (
     calculate_cost,
-    GPT5_PRICING,
     format_cost_summary,
     CostTracker,
     estimate_cost_from_tokens,
@@ -44,7 +43,7 @@ def demo_basic_token_counting():
 
     print(f"Text: {text}")
     print(f"Token count: {token_count}")
-    print(f"Encoding: o200k_base (GPT-5)")
+    print("Encoding: o200k_base (GPT-5)")
     print()
 
 
@@ -101,7 +100,9 @@ def demo_cost_with_caching():
     print(f"Output cost: ${cost['output_cost_usd']:.6f}")
     print(f"Total cost: ${cost['total_cost_usd']:.6f}")
     print()
-    print(f"Cache savings: ${cost['cache_savings_usd']:.6f} ({cost['cached_tokens'] / cost['prompt_tokens']:.1%})")
+    print(
+        f"Cache savings: ${cost['cache_savings_usd']:.6f} ({cost['cached_tokens'] / cost['prompt_tokens']:.1%})"
+    )
     print()
     print(f"Summary: {format_cost_summary(cost)}")
     print()
@@ -188,17 +189,16 @@ def demo_cost_tracker():
                 "prompt_tokens_details": {"cached_tokens": 960},  # 80% cached
             }
 
-        cost = tracker.add_usage(
-            usage,
-            metadata={"pdf_path": pdf_path, "doc_id": i}
-        )
+        cost = tracker.add_usage(usage, metadata={"pdf_path": pdf_path, "doc_id": i})
 
         # Log progress for first 3 PDFs
         if i <= 3:
             print(f"PDF {i}: {pdf_path}")
             print(f"  Cost: ${cost['total_cost_usd']:.6f}")
-            if cost['cached_tokens'] > 0:
-                print(f"  Cached: {cost['cached_tokens']} tokens (saved ${cost['cache_savings_usd']:.6f})")
+            if cost["cached_tokens"] > 0:
+                print(
+                    f"  Cached: {cost['cached_tokens']} tokens (saved ${cost['cache_savings_usd']:.6f})"
+                )
             print()
 
     # Show summary
@@ -223,7 +223,9 @@ def demo_structured_logging():
     print("=" * 70)
 
     # Set up structured logger
-    logger = setup_logging(log_level="INFO", log_format="json", log_file="logs/demo.log")
+    logger = setup_logging(
+        log_level="INFO", log_format="json", log_file="logs/demo.log"
+    )
 
     # Simulate processing a PDF
     usage = {
@@ -270,7 +272,9 @@ def demo_pre_flight_estimation():
     encoding = resolver.get_encoding("gpt-5")
 
     # Count tokens in prompt
-    prompt = "Extract metadata: doc_type, issuer, primary_date, total_amount from the PDF."
+    prompt = (
+        "Extract metadata: doc_type, issuer, primary_date, total_amount from the PDF."
+    )
     prompt_tokens = len(encoding.encode(prompt))
 
     # Estimate output tokens (conservative guess)

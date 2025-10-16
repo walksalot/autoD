@@ -3,7 +3,7 @@
 
 ## 1 Overview – why the Responses API matters
 
-OpenAI’s **Responses API** is the successor to the Chat Completions API.  It combines the simplicity of chat completion with the tool‑calling and agentic capabilities of the deprecated Assistants API.  According to OpenAI, the Responses API is now the recommended interface for all new projects; Chat Completions remains supported but should be considered legacy.  
+OpenAI’s **Responses API** is the successor to the Chat Completions API.  It combines the simplicity of chat completion with the tool‑calling and agentic capabilities of the deprecated Assistants API.  According to OpenAI, the Responses API is now the recommended interface for all new projects; Chat Completions remains supported but should be considered legacy.
 
 ### Key motivations
 
@@ -312,7 +312,7 @@ print(chat_response["choices"][0]["message"]["content"])
 
 # New Responses API style:
 response = openai.Response.create(
-    model="gpt-4.1", 
+    model="gpt-4.1",
     input="Write a one-sentence bedtime story about a unicorn."
 )
 print(response.output_text)
@@ -467,8 +467,8 @@ Quickstart
 
 Faster responses
 
-By default, GPT-5 produces a medium length chain of thought before responding to a prompt. For faster, lower-latency responses, use low reasoning effort and low text verbosity.  
-  
+By default, GPT-5 produces a medium length chain of thought before responding to a prompt. For faster, lower-latency responses, use low reasoning effort and low text verbosity.
+
 This behavior will more closely (but not exactly!) match non-reasoning models like [GPT-4.1](/docs/models/gpt-4.1). We expect GPT-5 to produce more intelligent responses than GPT-4.1, but when speed and maximum context length are paramount, you might consider using GPT-4.1 instead.
 
 Fast, low latency response options
@@ -514,8 +514,8 @@ curl https://api.openai.com/v1/responses \
 
 Coding and agentic tasks
 
-GPT-5 is great at reasoning through complex tasks. **For complex tasks like coding and multi-step planning, use high reasoning effort.**  
-  
+GPT-5 is great at reasoning through complex tasks. **For complex tasks like coding and multi-step planning, use high reasoning effort.**
+
 Use these configurations when replacing tasks you might have used o3 to tackle. We expect GPT-5 to produce better results than o3 and o4-mini under most circumstances.
 
 Slower, high reasoning tasks
@@ -978,21 +978,21 @@ FAQ
 ---
 
 1.  **How are these models integrated into ChatGPT?**
-    
+
     In ChatGPT, there are two models: `gpt-5-chat` and `gpt-5-thinking`. They offer reasoning and minimal-reasoning capabilities, with a routing layer that selects the best model based on the user's question. Users can also invoke reasoning directly through the ChatGPT UI.
-    
+
 2.  **Will these models be supported in Codex?**
-    
+
     Yes, `gpt-5` will be available in Codex and Codex CLI.
-    
+
 3.  **How does GPT-5 compare to GPT-5-Codex?**
-    
+
     [`GPT-5-Codex`](/docs/models/gpt-5-codex) was specifically designed for use in Codex. Unlike `GPT-5`, which is a general-purpose model, we recommend using GPT-5-Codex only for agentic coding tasks in Codex or Codex-like environments, and GPT-5 for use cases in other domains. GPT-5-Codex is only available in the Responses API and supports low, medium, and high `reasoning_efforts` and function calling, structured outputs, and the `web_search` tool.
-    
+
 4.  **What is the deprecation plan for previous models?**
-    
+
     Any model deprecations will be posted on our [deprecations page](/docs/deprecations#page-top). We'll send advanced notice of any model deprecations.
-    
+
 
 
 Migrate to the Responses API
@@ -1778,7 +1778,7 @@ curl https://api.openai.com/v1/responses \
 ```python
 response = client.responses.create(
   model="gpt-5",
-  input="Jane, 54 years old", 
+  input="Jane, 54 years old",
   text={
     "format": {
       "type": "json_schema",
@@ -3018,7 +3018,7 @@ except Exception as e:
     pass
 ```
 
-### 
+###
 
 Refusals with Structured Outputs
 
@@ -3120,7 +3120,7 @@ The API response from a refusal will look something like this:
 }
 ```
 
-### 
+###
 
 Tips and best practices
 
@@ -3723,7 +3723,7 @@ try {
     text: { format: { type: "json_object" } },
   });
 
-  // Check if the conversation was too long for the context window, resulting in incomplete JSON 
+  // Check if the conversation was too long for the context window, resulting in incomplete JSON
   if (response.status === "incomplete" && response.incomplete_details.reason === "max_output_tokens") {
     // your code should handle this error case
   }
@@ -3770,7 +3770,7 @@ try:
         text={"format": {"type": "json_object"}}
     )
 
-    # Check if the conversation was too long for the context window, resulting in incomplete JSON 
+    # Check if the conversation was too long for the context window, resulting in incomplete JSON
     if response.status == "incomplete" and response.incomplete_details.reason == "max_output_tokens":
         # your code should handle this error case
         pass

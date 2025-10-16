@@ -180,7 +180,9 @@ def build_responses_api_payload(
     if file_id and pdf_base64:
         raise ValueError("Provide only one of file_id or pdf_base64.")
 
-    processed_at = processed_at or datetime.now(timezone.utc).isoformat(timespec="seconds")
+    processed_at = processed_at or datetime.now(timezone.utc).isoformat(
+        timespec="seconds"
+    )
     original_file_name = original_file_name or filename
     source_file_id = source_file_id or file_id
 
@@ -227,8 +229,14 @@ def build_responses_api_payload(
     payload: Dict[str, Any] = {
         "model": config.openai_model,
         "input": [
-            {"role": "system", "content": [{"type": "input_text", "text": SYSTEM_PROMPT}]},
-            {"role": "developer", "content": [{"type": "input_text", "text": DEVELOPER_PROMPT}]},
+            {
+                "role": "system",
+                "content": [{"type": "input_text", "text": SYSTEM_PROMPT}],
+            },
+            {
+                "role": "developer",
+                "content": [{"type": "input_text", "text": DEVELOPER_PROMPT}],
+            },
             {"role": "user", "content": user_content},
         ],
         "text": {
@@ -245,7 +253,9 @@ def build_responses_api_payload(
 
     if vector_store_ids:
         payload["tools"] = [{"type": "file_search"}]
-        payload["attachments"] = [{"vector_store_id": vs_id} for vs_id in vector_store_ids]
+        payload["attachments"] = [
+            {"vector_store_id": vs_id} for vs_id in vector_store_ids
+        ]
 
     if reasoning_effort:
         payload["reasoning_effort"] = reasoning_effort

@@ -1,10 +1,9 @@
 """Unit tests for encoding resolution."""
 
 import pytest
-from pathlib import Path
 
 from token_counter.encoding import EncodingResolver
-from token_counter.exceptions import ConfigurationError, EncodingNotFoundError
+from token_counter.exceptions import ConfigurationError
 
 
 class TestEncodingResolver:

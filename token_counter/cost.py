@@ -70,16 +70,14 @@ class CostCalculator:
         """
         config_path = Path(config_path)
         if not config_path.exists():
-            raise ConfigurationError(
-                f"Pricing config not found at {config_path}"
-            )
+            raise ConfigurationError(f"Pricing config not found at {config_path}")
 
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
         if not config or "defaults" not in config:
             raise ConfigurationError(
-                f"Invalid pricing config: missing 'defaults' section"
+                "Invalid pricing config: missing 'defaults' section"
             )
 
         return config
@@ -107,8 +105,8 @@ class CostCalculator:
                 "output_per_million": model_config["output_per_million"],
                 "cached_input_per_million": model_config.get(
                     "cached_input_per_million",
-                    model_config["input_per_million"] *
-                    self.pricing_config["defaults"]["cached_discount_factor"]
+                    model_config["input_per_million"]
+                    * self.pricing_config["defaults"]["cached_discount_factor"],
                 ),
             }
 
@@ -121,8 +119,8 @@ class CostCalculator:
                     "output_per_million": pattern_def["output_per_million"],
                     "cached_input_per_million": pattern_def.get(
                         "cached_input_per_million",
-                        pattern_def["input_per_million"] *
-                        self.pricing_config["defaults"]["cached_discount_factor"]
+                        pattern_def["input_per_million"]
+                        * self.pricing_config["defaults"]["cached_discount_factor"],
                     ),
                 }
 
@@ -198,7 +196,6 @@ class CostCalculator:
             For requests with output tokens, use calculate_cost() directly
             with explicit input/output breakdown.
         """
-        from .models import TokenCount  # Import here to avoid circular dependency
 
         return self.calculate_cost(
             model=model,

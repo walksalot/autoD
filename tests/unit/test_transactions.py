@@ -6,7 +6,7 @@ rollback and cleanup when database commits fail.
 """
 
 import pytest
-from unittest.mock import Mock, MagicMock, call
+from unittest.mock import Mock
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import sessionmaker, declarative_base
 from src.transactions import compensating_transaction
@@ -17,6 +17,7 @@ Base = declarative_base()
 
 class TestDocument(Base):
     """Test model for transaction testing."""
+
     __tablename__ = "test_documents"
     id = Column(Integer, primary_key=True)
     name = Column(String(100))
@@ -87,11 +88,14 @@ class TestCompensatingTransaction:
 
     def test_compensation_failure_does_not_mask_original_error(self, db_session):
         """When both transaction and compensation fail, original error is preserved."""
+
         def failing_compensation():
             raise RuntimeError("Compensation error")
 
         with pytest.raises(ValueError) as exc_info:
-            with compensating_transaction(db_session, compensate_fn=failing_compensation):
+            with compensating_transaction(
+                db_session, compensate_fn=failing_compensation
+            ):
                 doc = TestDocument(name="test")
                 db_session.add(doc)
                 raise ValueError("Original transaction error")
@@ -109,7 +113,9 @@ class TestCompensatingTransaction:
                 raise ValueError("Error without compensation")
 
         # Verify rollback occurred
-        result = db_session.query(TestDocument).filter_by(name="no-compensation").first()
+        result = (
+            db_session.query(TestDocument).filter_by(name="no-compensation").first()
+        )
         assert result is None
 
     def test_compensation_cleans_up_external_resources(self, db_session):
@@ -123,7 +129,9 @@ class TestCompensatingTransaction:
             mock_api_cleanup(file_id)
 
         with pytest.raises(RuntimeError):
-            with compensating_transaction(db_session, compensate_fn=cleanup_external_file):
+            with compensating_transaction(
+                db_session, compensate_fn=cleanup_external_file
+            ):
                 doc = TestDocument(name="external-ref")
                 db_session.add(doc)
                 # Simulate failure after external resource created
@@ -160,7 +168,9 @@ class TestCompensatingTransaction:
             cleanup_calls.append("cancel_async_job")
 
         with pytest.raises(Exception):
-            with compensating_transaction(db_session, compensate_fn=complex_compensation):
+            with compensating_transaction(
+                db_session, compensate_fn=complex_compensation
+            ):
                 doc = TestDocument(name="complex")
                 db_session.add(doc)
                 raise Exception("Complex failure")
@@ -169,7 +179,7 @@ class TestCompensatingTransaction:
         assert cleanup_calls == [
             "delete_file",
             "remove_vector_store_entry",
-            "cancel_async_job"
+            "cancel_async_job",
         ]
 
     def test_compensation_with_partial_failure(self, db_session):
@@ -183,7 +193,9 @@ class TestCompensatingTransaction:
             cleanup_state["step3"] = True  # pragma: no cover
 
         with pytest.raises(ValueError) as exc_info:
-            with compensating_transaction(db_session, compensate_fn=partial_failing_compensation):
+            with compensating_transaction(
+                db_session, compensate_fn=partial_failing_compensation
+            ):
                 raise ValueError("Original error")
 
         # Original error preserved

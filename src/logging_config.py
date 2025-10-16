@@ -47,7 +47,6 @@ class JSONFormatter(logging.Formatter):
             "cached_tokens",
             "billable_input_tokens",
             "total_tokens",
-
             # Cost metrics (USD)
             "cost_usd",  # Backward compatibility (WS2)
             "input_cost_usd",
@@ -55,11 +54,9 @@ class JSONFormatter(logging.Formatter):
             "cache_cost_usd",
             "cache_savings_usd",
             "total_cost_usd",
-
             # Performance metrics
             "duration_ms",
             "throughput_pdfs_per_hour",
-
             # Processing context
             "pdf_path",
             "doc_id",
@@ -161,10 +158,15 @@ if __name__ == "__main__":
     correlation_id = get_correlation_id()
 
     logger.info("Test log message", extra={"correlation_id": correlation_id})
-    logger.debug("Debug message", extra={"correlation_id": correlation_id, "extra": {"test": "data"}})
+    logger.debug(
+        "Debug message",
+        extra={"correlation_id": correlation_id, "extra": {"test": "data"}},
+    )
     logger.warning("Warning message")
 
     try:
         raise ValueError("Test exception")
-    except Exception as e:
-        logger.error("Error occurred", exc_info=True, extra={"correlation_id": correlation_id})
+    except Exception:
+        logger.error(
+            "Error occurred", exc_info=True, extra={"correlation_id": correlation_id}
+        )

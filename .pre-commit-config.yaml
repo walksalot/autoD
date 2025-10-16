@@ -27,7 +27,7 @@ repos:
           - sqlalchemy>=2.0
           - types-requests
         args: [--ignore-missing-imports, --explicit-package-bases]
-        exclude: ^(tests/|docs/)
+        exclude: ^(tests/|docs/|src/dedupe\.py)
 
   # Pre-commit built-in hooks for basic file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks

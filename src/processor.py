@@ -9,7 +9,6 @@ import base64
 import json
 import time
 from datetime import datetime
-from sqlalchemy.orm import Session
 
 from src.config import get_config
 from src.logging_config import setup_logging, get_correlation_id
@@ -115,7 +114,10 @@ def process_document(
             if duplicate and skip_duplicates:
                 logger.info(
                     f"Duplicate detected: {file_path.name} (original ID: {duplicate.id})",
-                    extra={"correlation_id": correlation_id, "duplicate_id": duplicate.id}
+                    extra={
+                        "correlation_id": correlation_id,
+                        "duplicate_id": duplicate.id,
+                    },
                 )
                 return ProcessingResult(
                     success=True,
@@ -129,7 +131,9 @@ def process_document(
             file_size = file_path.stat().st_size
 
             # Step 3: Build API payload
-            logger.info("Building API payload", extra={"correlation_id": correlation_id})
+            logger.info(
+                "Building API payload", extra={"correlation_id": correlation_id}
+            )
             payload = build_responses_api_payload(
                 filename=file_path.name,
                 pdf_base64=pdf_base64,
@@ -137,7 +141,9 @@ def process_document(
             )
 
             # Step 4: Call API
-            logger.info("Calling OpenAI Responses API", extra={"correlation_id": correlation_id})
+            logger.info(
+                "Calling OpenAI Responses API", extra={"correlation_id": correlation_id}
+            )
             response = api_client.create_response(payload)
 
             # Step 5: Extract output
@@ -145,18 +151,27 @@ def process_document(
             usage = api_client.extract_usage(response)
 
             # Step 6: Parse and validate JSON
-            logger.info("Parsing and validating response", extra={"correlation_id": correlation_id})
+            logger.info(
+                "Parsing and validating response",
+                extra={"correlation_id": correlation_id},
+            )
             try:
                 metadata = json.loads(output_text)
             except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in response: {e}", extra={"correlation_id": correlation_id})
+                logger.error(
+                    f"Invalid JSON in response: {e}",
+                    extra={"correlation_id": correlation_id},
+                )
                 raise ValueError(f"Invalid JSON: {e}")
 
             is_valid, errors = validate_response(metadata)
             if not is_valid:
                 logger.warning(
                     f"Schema validation failed: {errors}",
-                    extra={"correlation_id": correlation_id, "validation_errors": errors}
+                    extra={
+                        "correlation_id": correlation_id,
+                        "validation_errors": errors,
+                    },
                 )
 
             # Step 7: Calculate cost
@@ -168,8 +183,7 @@ def process_document(
             )
 
             logger.info(
-                format_cost_report(cost_data),
-                extra={"correlation_id": correlation_id}
+                format_cost_report(cost_data), extra={"correlation_id": correlation_id}
             )
 
             # Check cost alerts
@@ -190,8 +204,16 @@ def process_document(
                 confidence_score=metadata.get("confidence_score"),
                 issuer=metadata.get("issuer"),
                 recipient=metadata.get("recipient"),
-                primary_date=datetime.strptime(metadata["primary_date"], "%Y-%m-%d").date() if metadata.get("primary_date") else None,
-                secondary_date=datetime.strptime(metadata["secondary_date"], "%Y-%m-%d").date() if metadata.get("secondary_date") else None,
+                primary_date=(
+                    datetime.strptime(metadata["primary_date"], "%Y-%m-%d").date()
+                    if metadata.get("primary_date")
+                    else None
+                ),
+                secondary_date=(
+                    datetime.strptime(metadata["secondary_date"], "%Y-%m-%d").date()
+                    if metadata.get("secondary_date")
+                    else None
+                ),
                 total_amount=metadata.get("total_amount"),
                 currency=metadata.get("currency"),
                 summary=metadata.get("summary"),
@@ -217,29 +239,43 @@ def process_document(
 
             logger.info(
                 f"Document saved: ID {doc.id}",
-                extra={"correlation_id": correlation_id, "document_id": doc.id}
+                extra={"correlation_id": correlation_id, "document_id": doc.id},
             )
 
             # Step 9: Upload to vector store
             try:
-                logger.info("Uploading to vector store", extra={"correlation_id": correlation_id})
+                logger.info(
+                    "Uploading to vector store",
+                    extra={"correlation_id": correlation_id},
+                )
                 metadata_attrs = build_vector_store_attributes(doc)
-                file_id = vector_manager.add_file_to_vector_store(file_path, metadata_attrs)
+                file_id = vector_manager.add_file_to_vector_store(
+                    file_path, metadata_attrs
+                )
 
                 if file_id:
                     doc.vector_store_file_id = file_id
                     doc.vector_store_attributes = metadata_attrs
                     session.commit()
-                    logger.info(f"Vector store file ID: {file_id}", extra={"correlation_id": correlation_id})
+                    logger.info(
+                        f"Vector store file ID: {file_id}",
+                        extra={"correlation_id": correlation_id},
+                    )
             except Exception as e:
-                logger.error(f"Vector store upload failed: {e}", extra={"correlation_id": correlation_id})
+                logger.error(
+                    f"Vector store upload failed: {e}",
+                    extra={"correlation_id": correlation_id},
+                )
                 # Non-fatal: continue processing
 
             processing_time = time.time() - start_time
 
             logger.info(
                 f"Processing complete: {file_path.name} ({processing_time:.2f}s)",
-                extra={"correlation_id": correlation_id, "processing_time": processing_time}
+                extra={
+                    "correlation_id": correlation_id,
+                    "processing_time": processing_time,
+                },
             )
 
             return ProcessingResult(
@@ -254,7 +290,7 @@ def process_document(
         logger.error(
             f"Processing failed: {file_path.name} - {str(e)}",
             exc_info=True,
-            extra={"correlation_id": correlation_id, "error": str(e)}
+            extra={"correlation_id": correlation_id, "error": str(e)},
         )
 
         return ProcessingResult(
@@ -393,7 +429,7 @@ if __name__ == "__main__":
         # Process inbox
         print("Processing inbox...")
         results = process_inbox()
-        print(f"\n=== Summary ===")
+        print("\n=== Summary ===")
         print(f"Total files: {results['total_files']}")
         print(f"Processed: {results['processed']}")
         print(f"Duplicates: {results['duplicates']}")

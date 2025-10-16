@@ -38,12 +38,14 @@ class DatabaseManager:
                 connect_args={"check_same_thread": False},
                 poolclass=StaticPool,  # Use static pool for SQLite
             )
+
             # Enable foreign keys for SQLite
             @event.listens_for(Engine, "connect")
             def set_sqlite_pragma(dbapi_conn, connection_record):
                 cursor = dbapi_conn.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
+
         else:
             # PostgreSQL configuration
             self.engine = create_engine(
@@ -78,6 +80,7 @@ class DatabaseManager:
         """
         try:
             from sqlalchemy import text
+
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             return True

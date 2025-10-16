@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Iterable
 
 from config.models import (
-    APPROVED_MODEL_IDS,
     DEPRECATED_MODEL_IDS,
     MODEL_POLICY_VERSION,
 )

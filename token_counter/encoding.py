@@ -58,9 +58,7 @@ class EncodingResolver:
             with open(self.config_path, "r") as f:
                 self._config = yaml.safe_load(f)
         except yaml.YAMLError as e:
-            raise ConfigurationError(
-                f"Invalid YAML in {self.config_path}: {e}"
-            ) from e
+            raise ConfigurationError(f"Invalid YAML in {self.config_path}: {e}") from e
 
         # Validate required sections
         required = ["exact_matches", "pattern_matches", "default_encoding"]

@@ -37,21 +37,27 @@ __all__ = [
     "PersistToDBStage",
 ]
 
+
 # Lazy imports to avoid circular dependencies
 def __getattr__(name):
     if name == "ComputeSHA256Stage":
         from src.stages.sha256_stage import ComputeSHA256Stage
+
         return ComputeSHA256Stage
     elif name == "DedupeCheckStage":
         from src.stages.dedupe_stage import DedupeCheckStage
+
         return DedupeCheckStage
     elif name == "UploadToFilesAPIStage":
         from src.stages.upload_stage import UploadToFilesAPIStage
+
         return UploadToFilesAPIStage
     elif name == "CallResponsesAPIStage":
         from src.stages.api_stage import CallResponsesAPIStage
+
         return CallResponsesAPIStage
     elif name == "PersistToDBStage":
         from src.stages.persist_stage import PersistToDBStage
+
         return PersistToDBStage
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

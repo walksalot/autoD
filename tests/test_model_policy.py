@@ -31,17 +31,23 @@ def test_python_sources_do_not_reference_deprecated_models():
     banned = set(DEPRECATED_MODEL_IDS)
     allowed = {
         Path("config/models.py"),  # central allow/deny list
-        Path("src/config.py"),     # config module validates and rejects deprecated models
-        Path("src/token_counter.py"),  # token counter needs to support all models for accurate counting
+        Path("src/config.py"),  # config module validates and rejects deprecated models
+        Path(
+            "src/token_counter.py"
+        ),  # token counter needs to support all models for accurate counting
         Path("src/cost_calculator.py"),  # cost calculator needs pricing for all models
-        Path("tests/unit/test_cost_calculator.py"),  # Cost calculator tests need all models for pricing tests
+        Path(
+            "tests/unit/test_cost_calculator.py"
+        ),  # Cost calculator tests need all models for pricing tests
     }
     # Token counter module needs to support all models for accurate counting
     allowed_prefixes = (
         Path("token_counter"),
         Path("tests/unit/test_encoding.py"),
         Path("tests/unit/test_primitives.py"),
-        Path("tests/unit/test_config.py"),  # Config tests may reference models in test data
+        Path(
+            "tests/unit/test_config.py"
+        ),  # Config tests may reference models in test data
         Path("tests/integration"),
         Path("examples"),  # Example code may reference models for demonstration
     )
@@ -52,8 +58,10 @@ def test_python_sources_do_not_reference_deprecated_models():
             continue
 
         # Skip virtual environments and build artifacts
-        if any(part in {".venv", "venv", "env", ".tox", "build", "dist", ".eggs"}
-               for part in rel_path.parts):
+        if any(
+            part in {".venv", "venv", "env", ".tox", "build", "dist", ".eggs"}
+            for part in rel_path.parts
+        ):
             continue
 
         # Skip token_counter module and its tests - they need to support all models

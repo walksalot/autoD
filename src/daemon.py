@@ -14,14 +14,12 @@ import time
 import threading
 from pathlib import Path
 from queue import Queue, Empty
-from typing import Optional
-from datetime import datetime
 
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileModifiedEvent
+from watchdog.events import FileSystemEventHandler
 
 from src.config import get_config
-from src.logging_config import setup_logging, get_correlation_id
+from src.logging_config import setup_logging
 from src.processor import process_document
 from src.database import DatabaseManager
 from src.api_client import ResponsesAPIClient
@@ -153,7 +151,7 @@ class PDFFileHandler(FileSystemEventHandler):
 
         logger.info(
             f"New PDF detected: {file_path.name}",
-            extra={"event": "file_detected", "filename": file_path.name}
+            extra={"event": "file_detected", "pdf_filename": file_path.name},
         )
 
         # Wait for file size to stabilize
@@ -165,7 +163,7 @@ class PDFFileHandler(FileSystemEventHandler):
             self.processing_queue.put(file_path)
             logger.info(
                 f"File queued for processing: {file_path.name}",
-                extra={"event": "file_queued", "filename": file_path.name}
+                extra={"event": "file_queued", "pdf_filename": file_path.name},
             )
         else:
             logger.warning(f"File failed stabilization check: {file_path.name}")
@@ -241,7 +239,7 @@ class DaemonManager:
 
         logger.info(
             f"Daemon initialized: watching {inbox_path}",
-            extra={"inbox_path": str(inbox_path)}
+            extra={"inbox_path": str(inbox_path)},
         )
 
     def signal_handler(self, signum, frame):
@@ -266,7 +264,10 @@ class DaemonManager:
                     self.processing_queue.put(pdf_file)
                     logger.info(
                         f"Queued existing file: {pdf_file.name}",
-                        extra={"event": "existing_file_queued", "filename": pdf_file.name}
+                        extra={
+                            "event": "existing_file_queued",
+                            "pdf_filename": pdf_file.name,
+                        },
                     )
 
     def process_queue(self):
@@ -278,7 +279,7 @@ class DaemonManager:
 
                 logger.info(
                     f"Processing: {file_path.name}",
-                    extra={"event": "processing_start", "filename": file_path.name}
+                    extra={"event": "processing_start", "pdf_filename": file_path.name},
                 )
 
                 # Process document using existing pipeline
@@ -298,8 +299,8 @@ class DaemonManager:
                             extra={
                                 "event": "duplicate_detected",
                                 "filename": file_path.name,
-                                "duplicate_of": result.duplicate_of
-                            }
+                                "duplicate_of": result.duplicate_of,
+                            },
                         )
                         # Move to processed (duplicate is successful case)
                         dest = self.processed_path / file_path.name
@@ -314,8 +315,8 @@ class DaemonManager:
                                 "filename": file_path.name,
                                 "document_id": result.document_id,
                                 "cost_usd": result.cost_usd,
-                                "processing_time": result.processing_time_seconds
-                            }
+                                "processing_time": result.processing_time_seconds,
+                            },
                         )
                         # Move to processed directory
                         dest = self.processed_path / file_path.name
@@ -326,8 +327,8 @@ class DaemonManager:
                         extra={
                             "event": "processing_failed",
                             "filename": file_path.name,
-                            "error": result.error
-                        }
+                            "error": result.error,
+                        },
                     )
                     # Move to failed directory
                     dest = self.failed_path / file_path.name
@@ -340,8 +341,7 @@ class DaemonManager:
                 continue
             except Exception as e:
                 logger.error(
-                    f"Unexpected error in processing queue: {e}",
-                    exc_info=True
+                    f"Unexpected error in processing queue: {e}", exc_info=True
                 )
 
         logger.info("Processing queue thread terminated")
@@ -372,7 +372,7 @@ class DaemonManager:
         self.processing_thread = threading.Thread(
             target=self.process_queue,
             name="ProcessingThread",
-            daemon=False  # Don't daemon thread so it can finish during shutdown
+            daemon=False,  # Don't daemon thread so it can finish during shutdown
         )
         self.processing_thread.start()
         logger.info("Processing thread started")
@@ -404,11 +404,15 @@ class DaemonManager:
         # Wait for processing queue to empty (with timeout)
         logger.info("Waiting for processing queue to empty...")
         queue_empty_start = time.time()
-        while not self.processing_queue.empty() and (time.time() - queue_empty_start < 30.0):
+        while not self.processing_queue.empty() and (
+            time.time() - queue_empty_start < 30.0
+        ):
             time.sleep(0.5)
 
         if not self.processing_queue.empty():
-            logger.warning(f"Processing queue not empty after 30s (remaining: {self.processing_queue.qsize()})")
+            logger.warning(
+                f"Processing queue not empty after 30s (remaining: {self.processing_queue.qsize()})"
+            )
 
         # Wait for processing thread
         if self.processing_thread.is_alive():
@@ -434,23 +438,20 @@ def main():
     """Main entry point for daemon."""
     config = get_config()
 
-    # Determine paths from environment or defaults
-    inbox_path_str = os.getenv("PAPER_AUTOPILOT_INBOX_PATH")
-    if inbox_path_str:
-        inbox_path = Path(inbox_path_str)
-        # Use sibling directories for processed/failed
-        paper_dir = inbox_path.parent
-        processed_path = paper_dir / "Processed"
-        failed_path = paper_dir / "Failed"
-    else:
-        # Fallback to config default
-        inbox_path = config.inbox_path
-        processed_path = Path("processed")
-        failed_path = Path("failed")
+    # Determine paths from environment or use default
+    inbox_path_str = os.getenv(
+        "PAPER_AUTOPILOT_INBOX_PATH", "/Users/krisstudio/Paper/InboxA"
+    )
+    inbox_path = Path(inbox_path_str)
+
+    # Use sibling directories for processed/failed
+    paper_dir = inbox_path.parent
+    processed_path = paper_dir / "Processed"
+    failed_path = paper_dir / "Failed"
 
     logger.info(
         f"Starting Paper Autopilot daemon (v{config.paper_autopilot_version})",
-        extra={"version": config.paper_autopilot_version}
+        extra={"version": config.paper_autopilot_version},
     )
 
     daemon = DaemonManager(

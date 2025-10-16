@@ -17,6 +17,7 @@ class UsageStats:
 
     Matches the structure returned by the actual OpenAI API.
     """
+
     prompt_tokens: int
     output_tokens: int
     total_tokens: int
@@ -28,13 +29,14 @@ class UsageStats:
             "prompt_tokens": self.prompt_tokens,
             "output_tokens": self.output_tokens,
             "total_tokens": self.total_tokens,
-            "prompt_tokens_details": self.prompt_tokens_details
+            "prompt_tokens_details": self.prompt_tokens_details,
         }
 
 
 @dataclass
 class ContentItem:
     """Simulates a content item with text attribute for API compatibility."""
+
     type: str
     text: str
 
@@ -42,6 +44,7 @@ class ContentItem:
 @dataclass
 class ResponseOutput:
     """Simulates OpenAI Responses API output structure."""
+
     role: str
     content: List[ContentItem]
 
@@ -53,6 +56,7 @@ class MockResponse:
     This matches the actual API response structure so that code
     parsing the response works identically with mock and real API.
     """
+
     usage: UsageStats
     output: List[ResponseOutput]
     model: str
@@ -72,12 +76,11 @@ class MockResponse:
                     "type": "message",
                     "role": out.role,
                     "content": [
-                        {"type": item.type, "text": item.text}
-                        for item in out.content
-                    ]
+                        {"type": item.type, "text": item.text} for item in out.content
+                    ],
                 }
                 for idx, out in enumerate(self.output)
-            ]
+            ],
         }
 
     def model_dump(self) -> Dict[str, Any]:
@@ -106,7 +109,9 @@ def _slug(value: str) -> str:
     return slug.strip("-") or "document"
 
 
-def _build_metadata(doc_type: str, filename: str, overrides: Dict[str, Any]) -> Dict[str, Any]:
+def _build_metadata(
+    doc_type: str, filename: str, overrides: Dict[str, Any]
+) -> Dict[str, Any]:
     category, subcategory = _CATEGORY_MAP.get(
         doc_type,
         ("Financial & Administrative", "Misc"),
@@ -118,8 +123,12 @@ def _build_metadata(doc_type: str, filename: str, overrides: Dict[str, Any]) -> 
         "suggested_file_name",
         f"{processed_date.split('T')[0]} – {issuer} – {doc_type or 'Document'}",
     )
-    suggested_name_ascii = suggested_name.encode("ascii", "ignore").decode().strip() or "document"
-    original_file = overrides.get("original_file_name") or overrides.get("file_name") or filename
+    suggested_name_ascii = (
+        suggested_name.encode("ascii", "ignore").decode().strip() or "document"
+    )
+    original_file = (
+        overrides.get("original_file_name") or overrides.get("file_name") or filename
+    )
 
     base_metadata: Dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -142,7 +151,8 @@ def _build_metadata(doc_type: str, filename: str, overrides: Dict[str, Any]) -> 
         "primary_date": overrides.get("primary_date"),
         "period_start_date": overrides.get("period_start_date"),
         "period_end_date": overrides.get("period_end_date"),
-        "key_points": overrides.get("key_points") or [f"{doc_type or 'Document'} processed for archival."],
+        "key_points": overrides.get("key_points")
+        or [f"{doc_type or 'Document'} processed for archival."],
         "action_items": overrides.get("action_items")
         or [
             {
@@ -180,7 +190,9 @@ def _build_metadata(doc_type: str, filename: str, overrides: Dict[str, Any]) -> 
                 "image_description": "Synthetic page summary for testing.",
             }
         ],
-        "content_signature": overrides.get("content_signature", "mock-content-signature"),
+        "content_signature": overrides.get(
+            "content_signature", "mock-content-signature"
+        ),
         "cross_doc_matches": overrides.get("cross_doc_matches") or [],
         "normalization": overrides.get("normalization")
         or {
@@ -220,7 +232,7 @@ def create_mock_response(
     prompt_tokens: int = 1000,
     output_tokens: int = 200,
     cached_tokens: int = 0,
-    model: str = "gpt-5"
+    model: str = "gpt-5",
 ) -> MockResponse:
     """Create a realistic mock response for testing.
 
@@ -256,7 +268,7 @@ def create_mock_response(
         prompt_tokens=prompt_tokens,
         output_tokens=output_tokens,
         total_tokens=prompt_tokens + output_tokens,
-        prompt_tokens_details={"cached_tokens": cached_tokens}
+        prompt_tokens_details={"cached_tokens": cached_tokens},
     )
 
     # Create output with JSON-formatted metadata
@@ -264,19 +276,12 @@ def create_mock_response(
         ResponseOutput(
             role="assistant",
             content=[
-                ContentItem(
-                    type="output_text",
-                    text=json.dumps(synthesized, indent=2)
-                )
-            ]
+                ContentItem(type="output_text", text=json.dumps(synthesized, indent=2))
+            ],
         )
     ]
 
-    return MockResponse(
-        usage=usage,
-        output=output,
-        model=model
-    )
+    return MockResponse(usage=usage, output=output, model=model)
 
 
 class MockResponsesNamespace:
@@ -286,7 +291,7 @@ class MockResponsesNamespace:
         self,
         default_doc_type: str = "invoice",
         error_simulator: Optional[Callable[[], None]] = None,
-        custom_response_fn: Optional[Callable[..., MockResponse]] = None
+        custom_response_fn: Optional[Callable[..., MockResponse]] = None,
     ):
         """Initialize mock responses namespace.
 
@@ -349,7 +354,7 @@ class MockResponsesNamespace:
             doc_type=self.default_doc_type,
             prompt_tokens=prompt_tokens,
             output_tokens=output_tokens,
-            model=model
+            model=model,
         )
 
 
@@ -381,7 +386,7 @@ class MockResponsesClient:
         self,
         default_doc_type: str = "invoice",
         error_simulator: Optional[Callable[[], None]] = None,
-        custom_response_fn: Optional[Callable[..., MockResponse]] = None
+        custom_response_fn: Optional[Callable[..., MockResponse]] = None,
     ):
         """Initialize mock OpenAI client.
 
@@ -393,11 +398,12 @@ class MockResponsesClient:
         self.responses = MockResponsesNamespace(
             default_doc_type=default_doc_type,
             error_simulator=error_simulator,
-            custom_response_fn=custom_response_fn
+            custom_response_fn=custom_response_fn,
         )
 
 
 # Convenience functions for common test scenarios
+
 
 def create_mock_client_with_doc_type(doc_type: str) -> MockResponsesClient:
     """Create a mock client that always returns a specific document type.
@@ -436,9 +442,7 @@ def create_mock_client_with_errors(error_fn: Callable[[], None]) -> MockResponse
 
 
 def create_mock_client_with_custom_tokens(
-    prompt_tokens: int,
-    output_tokens: int,
-    cached_tokens: int = 0
+    prompt_tokens: int, output_tokens: int, cached_tokens: int = 0
 ) -> MockResponsesClient:
     """Create a mock client with specific token counts for cost testing.
 
@@ -459,6 +463,7 @@ def create_mock_client_with_custom_tokens(
         >>> response = client.responses.create(model="gpt-5", input=[...])
         >>> assert response.usage.prompt_tokens == 50000
     """
+
     def custom_response(**kwargs):
         model = kwargs.get("model", "gpt-5")
         return create_mock_response(
@@ -466,7 +471,7 @@ def create_mock_client_with_custom_tokens(
             prompt_tokens=prompt_tokens,
             output_tokens=output_tokens,
             cached_tokens=cached_tokens,
-            model=model
+            model=model,
         )
 
     return MockResponsesClient(custom_response_fn=custom_response)

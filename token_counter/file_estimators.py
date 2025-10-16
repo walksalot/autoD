@@ -17,10 +17,10 @@ import base64
 import io
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Union
 
 try:
     from PyPDF2 import PdfReader
+
     HAS_PYPDF2 = True
 except ImportError:
     HAS_PYPDF2 = False

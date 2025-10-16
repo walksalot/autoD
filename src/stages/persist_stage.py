@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from src.models import Document
 from src.pipeline import ProcessingContext, ProcessingStage
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,10 +67,12 @@ class PersistToDBStage(ProcessingStage):
         if not context.file_id:
             raise ValueError("file_id not set")
         if context.metadata_json is None:
-            raise ValueError("metadata_json not set - CallResponsesAPIStage must run first")
+            raise ValueError(
+                "metadata_json not set - CallResponsesAPIStage must run first"
+            )
 
         logger.info(
-            f"Creating database record",
+            "Creating database record",
             extra={
                 "pdf_path": str(context.pdf_path),
                 "sha256_hex": context.sha256_hex,
@@ -117,11 +120,15 @@ class PersistToDBStage(ProcessingStage):
         context.document_id = doc.id
 
         logger.info(
-            f"Database record created",
+            "Database record created",
             extra={
                 "pdf_path": str(context.pdf_path),
                 "document_id": doc.id,
-                "doc_type": context.metadata_json.get("doc_type") if context.metadata_json else None,
+                "doc_type": (
+                    context.metadata_json.get("doc_type")
+                    if context.metadata_json
+                    else None
+                ),
             },
         )
 

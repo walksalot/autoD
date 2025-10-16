@@ -4,13 +4,11 @@ Unit tests for structured logging configuration.
 Tests JSON formatting, extra field extraction, and logging setup.
 """
 
-import pytest
 import logging
 import json
 import tempfile
 import uuid
 from pathlib import Path
-from unittest.mock import Mock, patch
 from src.logging_config import JSONFormatter, setup_logging, get_correlation_id
 
 
@@ -27,7 +25,7 @@ class TestJSONFormatter:
             lineno=42,
             msg="Test message",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         result = formatter.format(record)
@@ -50,7 +48,7 @@ class TestJSONFormatter:
             lineno=10,
             msg="Processing document",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         # Add extra fields as attributes (how Python logging works)
@@ -77,7 +75,7 @@ class TestJSONFormatter:
             lineno=20,
             msg="API call completed",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         record.duration_ms = 1234
@@ -103,7 +101,7 @@ class TestJSONFormatter:
             lineno=15,
             msg="Test",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         correlation_id = "test-correlation-id-123"
@@ -122,6 +120,7 @@ class TestJSONFormatter:
             raise ValueError("Test error")
         except ValueError:
             import sys
+
             exc_info = sys.exc_info()
 
         record = logging.LogRecord(
@@ -131,7 +130,7 @@ class TestJSONFormatter:
             lineno=30,
             msg="Error occurred",
             args=(),
-            exc_info=exc_info
+            exc_info=exc_info,
         )
 
         result = formatter.format(record)
@@ -151,7 +150,7 @@ class TestJSONFormatter:
             lineno=25,
             msg="Test",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         # Don't add any extra fields
@@ -173,7 +172,7 @@ class TestJSONFormatter:
             lineno=35,
             msg="Document processed",
             args=(),
-            exc_info=None
+            exc_info=None,
         )
 
         record.status = "completed"
@@ -203,7 +202,7 @@ class TestSetupLogging:
         """Log directory is created if it doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             log_file = Path(tmpdir) / "nested" / "dir" / "test.log"
-            logger = setup_logging(log_file=str(log_file))
+            _logger = setup_logging(log_file=str(log_file))
 
             assert log_file.parent.exists()
 
@@ -225,8 +224,9 @@ class TestSetupLogging:
             logger = setup_logging(log_format="json", log_file=str(log_file))
 
             # Check file handler has JSONFormatter
-            file_handler = [h for h in logger.handlers
-                           if type(h).__name__ == "RotatingFileHandler"][0]
+            file_handler = [
+                h for h in logger.handlers if type(h).__name__ == "RotatingFileHandler"
+            ][0]
             assert isinstance(file_handler.formatter, JSONFormatter)
 
     def test_text_formatter_used_for_text_format(self):
@@ -236,8 +236,9 @@ class TestSetupLogging:
             logger = setup_logging(log_format="text", log_file=str(log_file))
 
             # Check file handler has standard Formatter
-            file_handler = [h for h in logger.handlers
-                           if type(h).__name__ == "RotatingFileHandler"][0]
+            file_handler = [
+                h for h in logger.handlers if type(h).__name__ == "RotatingFileHandler"
+            ][0]
             assert isinstance(file_handler.formatter, logging.Formatter)
             assert not isinstance(file_handler.formatter, JSONFormatter)
 

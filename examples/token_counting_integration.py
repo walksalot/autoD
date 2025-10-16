@@ -21,9 +21,7 @@ def example_basic_counting():
     counter = TokenCounter()
 
     # Simple message
-    messages = [
-        {"role": "user", "content": "Hello, how are you today?"}
-    ]
+    messages = [{"role": "user", "content": "Hello, how are you today?"}]
 
     result = counter.count_tokens("gpt-5", messages)
 
@@ -44,7 +42,7 @@ def example_with_cost_estimation():
 
     messages = [
         {"role": "system", "content": "You are a helpful AI assistant"},
-        {"role": "user", "content": "Write a short poem about Python programming"}
+        {"role": "user", "content": "Write a short poem about Python programming"},
     ]
 
     # Count tokens and estimate cost
@@ -64,9 +62,7 @@ def example_with_tools():
 
     counter = TokenCounter()
 
-    messages = [
-        {"role": "user", "content": "What's the weather in San Francisco?"}
-    ]
+    messages = [{"role": "user", "content": "What's the weather in San Francisco?"}]
 
     tools = [
         {
@@ -77,18 +73,12 @@ def example_with_tools():
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "location": {
-                            "type": "string",
-                            "description": "City name"
-                        },
-                        "units": {
-                            "type": "string",
-                            "enum": ["celsius", "fahrenheit"]
-                        }
+                        "location": {"type": "string", "description": "City name"},
+                        "units": {"type": "string", "enum": ["celsius", "fahrenheit"]},
                     },
-                    "required": ["location"]
-                }
-            }
+                    "required": ["location"],
+                },
+            },
         }
     ]
 
@@ -141,11 +131,11 @@ def example_output_estimation():
     result = counter.count_and_estimate(
         model="gpt-5",
         messages=messages,
-        estimated_output_tokens=600  # Estimated essay length
+        estimated_output_tokens=600,  # Estimated essay length
     )
 
     print(f"Input tokens: {result.count.total}")
-    print(f"Estimated output tokens: 600")
+    print("Estimated output tokens: 600")
     print(f"Input cost: ${result.cost.input_usd:.6f}")
     print(f"Output cost: ${result.cost.output_usd:.6f}")
     print(f"Total estimated cost: ${result.cost.total_usd:.6f}")
@@ -190,13 +180,15 @@ def example_file_estimation():
                     "type": "input_file",
                     "filename": "report.pdf",
                     # In real usage, you'd have actual base64-encoded PDF data here
-                    "file_data": "data:application/pdf;base64,JVBERi0xLjQK..."
-                }
-            ]
+                    "file_data": "data:application/pdf;base64,JVBERi0xLjQK...",
+                },
+            ],
         }
     ]
 
-    result = counter.count_tokens("gpt-5", messages, estimate_files=True, estimate_cost=True)
+    result = counter.count_tokens(
+        "gpt-5", messages, estimate_files=True, estimate_cost=True
+    )
 
     print(f"Message tokens: {result.breakdown['messages']}")
     print(f"File tokens (estimated): {result.breakdown['files']}")
@@ -216,18 +208,11 @@ def example_api_format_detection():
 
     # Responses API format
     responses_messages = [
-        {
-            "role": "user",
-            "content": [
-                {"type": "input_text", "text": "Hello"}
-            ]
-        }
+        {"role": "user", "content": [{"type": "input_text", "text": "Hello"}]}
     ]
 
     # Chat API format
-    chat_messages = [
-        {"role": "user", "content": "Hello"}
-    ]
+    chat_messages = [{"role": "user", "content": "Hello"}]
 
     result1 = counter.count_tokens("gpt-5", responses_messages)
     result2 = counter.count_tokens("gpt-4", chat_messages)

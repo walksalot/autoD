@@ -25,9 +25,7 @@ from io import StringIO
 
 
 def create_test_pdf(
-    content: str = "test",
-    filename: str = "test.pdf",
-    tmp_path: Optional[Path] = None
+    content: str = "test", filename: str = "test.pdf", tmp_path: Optional[Path] = None
 ) -> Path:
     """Generate a minimal valid PDF file for testing.
 
@@ -67,7 +65,9 @@ endobj
 endobj
 %% Embedded test content: {content}
 %%EOF
-""".encode("utf-8")
+""".encode(
+        "utf-8"
+    )
 
     pdf_path.write_bytes(pdf_content)
     return pdf_path
@@ -209,7 +209,9 @@ endobj
 endobj
 %% Embedded test content: {content}
 %%EOF
-""".encode("utf-8")
+""".encode(
+        "utf-8"
+    )
 
     return hashlib.sha256(pdf_content).hexdigest()
 

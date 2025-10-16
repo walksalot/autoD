@@ -5,7 +5,6 @@ Provides preflight cost estimates and actual usage tracking.
 
 import tiktoken
 from typing import Dict, Any, Optional
-import json
 
 from src.config import get_config
 
@@ -118,7 +117,9 @@ def calculate_cost(
 
     # Calculate costs (per 1M tokens, convert to actual)
     input_cost = (uncached_tokens / 1_000_000) * config.prompt_token_price_per_million
-    output_cost = (completion_tokens / 1_000_000) * config.completion_token_price_per_million
+    output_cost = (
+        completion_tokens / 1_000_000
+    ) * config.completion_token_price_per_million
     cache_cost = (cached_tokens / 1_000_000) * config.cached_token_price_per_million
 
     total_cost = input_cost + output_cost + cache_cost
@@ -159,12 +160,11 @@ def format_cost_report(cost_data: Dict[str, Any]) -> str:
     ]
 
     # Calculate cache savings
-    if tokens['cached_tokens'] > 0:
+    if tokens["cached_tokens"] > 0:
         full_cost_without_cache = (
-            (tokens['prompt_tokens'] / 1_000_000) * get_config().prompt_token_price_per_million
-            + cost_data['output_cost']
-        )
-        savings = full_cost_without_cache - cost_data['total_cost']
+            tokens["prompt_tokens"] / 1_000_000
+        ) * get_config().prompt_token_price_per_million + cost_data["output_cost"]
+        savings = full_cost_without_cache - cost_data["total_cost"]
         savings_pct = (savings / full_cost_without_cache) * 100
         report.append(f"Cache savings: ${savings:.4f} ({savings_pct:.1f}%)")
 
@@ -211,10 +211,7 @@ if __name__ == "__main__":
     user_prompt = build_user_prompt("test.pdf", 1)
 
     estimates = estimate_prompt_tokens(
-        SYSTEM_PROMPT,
-        DEVELOPER_PROMPT,
-        user_prompt,
-        "gpt-5-mini"
+        SYSTEM_PROMPT, DEVELOPER_PROMPT, user_prompt, "gpt-5-mini"
     )
 
     print(f"✅ System tokens: {estimates['system_tokens']}")
@@ -225,10 +222,10 @@ if __name__ == "__main__":
     # Test 3: Calculate cost (first request, no cache)
     print("\nTest 3: Calculate cost (first request)")
     cost_first = calculate_cost(
-        prompt_tokens=estimates['total_tokens'],
+        prompt_tokens=estimates["total_tokens"],
         completion_tokens=500,
         cached_tokens=0,
-        model="gpt-5-mini"
+        model="gpt-5-mini",
     )
 
     print(format_cost_report(cost_first))
@@ -236,13 +233,13 @@ if __name__ == "__main__":
     # Test 4: Calculate cost (subsequent request, with cache)
     print("\nTest 4: Calculate cost (with prompt caching)")
     # Assume system + developer prompts are cached (90% of prompt tokens)
-    cacheable_tokens = estimates['system_tokens'] + estimates['developer_tokens']
+    cacheable_tokens = estimates["system_tokens"] + estimates["developer_tokens"]
 
     cost_cached = calculate_cost(
-        prompt_tokens=estimates['total_tokens'],
+        prompt_tokens=estimates["total_tokens"],
         completion_tokens=500,
         cached_tokens=cacheable_tokens,
-        model="gpt-5-mini"
+        model="gpt-5-mini",
     )
 
     print(format_cost_report(cost_cached))
@@ -259,8 +256,8 @@ if __name__ == "__main__":
 
     # Test 6: Savings calculation
     print("\nTest 6: Cache savings analysis")
-    savings = cost_first['total_cost'] - cost_cached['total_cost']
-    savings_pct = (savings / cost_first['total_cost']) * 100
+    savings = cost_first["total_cost"] - cost_cached["total_cost"]
+    savings_pct = (savings / cost_first["total_cost"]) * 100
 
     print(f"✅ First request cost: ${cost_first['total_cost']:.4f}")
     print(f"✅ Cached request cost: ${cost_cached['total_cost']:.4f}")

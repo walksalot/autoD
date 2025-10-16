@@ -2,43 +2,43 @@
 # coding: utf-8
 
 # # How to count tokens with tiktoken
-# 
+#
 # [`tiktoken`](https://github.com/openai/tiktoken/blob/main/README.md) is a fast open-source tokenizer by OpenAI.
-# 
+#
 # Given a text string (e.g., `"tiktoken is great!"`) and an encoding (e.g., `"cl100k_base"`), a tokenizer can split the text string into a list of tokens (e.g., `["t", "ik", "token", " is", " great", "!"]`).
-# 
+#
 # Splitting text strings into tokens is useful because GPT models see text in the form of tokens. Knowing how many tokens are in a text string can tell you (a) whether the string is too long for a text model to process and (b) how much an OpenAI API call costs (as usage is priced by token).
-# 
-# 
+#
+#
 # ## Encodings
-# 
+#
 # Encodings specify how text is converted into tokens. Different models use different encodings.
-# 
+#
 # `tiktoken` supports three encodings used by OpenAI models:
-# 
+#
 # | Encoding name           | OpenAI models                                       |
 # |-------------------------|-----------------------------------------------------|
 # | `o200k_base`            | `gpt-4o`, `gpt-4o-mini`                             |
 # | `cl100k_base`           | `gpt-4-turbo`, `gpt-4`, `gpt-3.5-turbo`, `text-embedding-ada-002`, `text-embedding-3-small`, `text-embedding-3-large`  |
 # | `p50k_base`             | Codex models, `text-davinci-002`, `text-davinci-003`|
 # | `r50k_base` (or `gpt2`) | GPT-3 models like `davinci`                         |
-# 
+#
 # You can retrieve the encoding for a model using `tiktoken.encoding_for_model()` as follows:
 # ```python
 # encoding = tiktoken.encoding_for_model('gpt-4o-mini')
 # ```
-# 
+#
 # Note that `p50k_base` overlaps substantially with `r50k_base`, and for non-code applications, they will usually give the same tokens.
-# 
+#
 # ## Tokenizer libraries by language
-# 
+#
 # For `o200k_base`, `cl100k_base` and `p50k_base` encodings:
 # - Python: [tiktoken](https://github.com/openai/tiktoken/blob/main/README.md)
 # - .NET / C#: [SharpToken](https://github.com/dmitry-brazhenko/SharpToken), [TiktokenSharp](https://github.com/aiqinxuancai/TiktokenSharp)
 # - Java: [jtokkit](https://github.com/knuddelsgmbh/jtokkit)
 # - Golang: [tiktoken-go](https://github.com/pkoukk/tiktoken-go)
 # - Rust: [tiktoken-rs](https://github.com/zurawiki/tiktoken-rs)
-# 
+#
 # For `r50k_base` (`gpt2`) encodings, tokenizers are available in many languages.
 # - Python: [tiktoken](https://github.com/openai/tiktoken/blob/main/README.md) (or alternatively [GPT2TokenizerFast](https://huggingface.co/docs/transformers/model_doc/gpt2#transformers.GPT2TokenizerFast))
 # - JavaScript: [gpt-3-encoder](https://www.npmjs.com/package/gpt-3-encoder)
@@ -47,16 +47,16 @@
 # - PHP: [GPT-3-Encoder-PHP](https://github.com/CodeRevolutionPlugins/GPT-3-Encoder-PHP)
 # - Golang: [tiktoken-go](https://github.com/pkoukk/tiktoken-go)
 # - Rust: [tiktoken-rs](https://github.com/zurawiki/tiktoken-rs)
-# 
+#
 # (OpenAI makes no endorsements or guarantees of third-party libraries.)
-# 
-# 
+#
+#
 # ## How strings are typically tokenized
-# 
+#
 # In English, tokens commonly range in length from one character to one word (e.g., `"t"` or `" great"`), though in some languages tokens can be shorter than one character or longer than one word. Spaces are usually grouped with the starts of words (e.g., `" is"` instead of `"is "` or `" "`+`"is"`). You can quickly check how a string is tokenized at the [OpenAI Tokenizer](https://beta.openai.com/tokenizer), or the third-party [Tiktokenizer](https://tiktokenizer.vercel.app/) webapp.
 
 # ## 0. Install `tiktoken`
-# 
+#
 # If needed, install `tiktoken` with `pip`:
 
 # In[1]:
@@ -75,9 +75,9 @@ import tiktoken
 
 
 # ## 2. Load an encoding
-# 
+#
 # Use `tiktoken.get_encoding()` to load an encoding by name.
-# 
+#
 # The first time this runs, it will require an internet connection to download. Later runs won't need an internet connection.
 
 # In[3]:
@@ -95,8 +95,8 @@ encoding = tiktoken.encoding_for_model("gpt-4o-mini")
 
 
 # ## 3. Turn text into tokens with `encoding.encode()`
-# 
-# 
+#
+#
 
 # The `.encode()` method converts a text string into a list of token integers.
 
@@ -147,7 +147,7 @@ encoding.decode([83, 8251, 2488, 382, 2212, 0])
 # (The `b` in front of the strings indicates that the strings are byte strings.)
 
 # ## 5. Comparing encodings
-# 
+#
 # Different encodings vary in how they split words, group spaces, and handle non-English characters. Using the methods above, we can compare different encodings on a few example strings.
 
 # In[10]:
@@ -188,13 +188,13 @@ compare_encodings("お誕生日おめでとう")
 
 
 # ## 6. Counting tokens for chat completions API calls
-# 
+#
 # ChatGPT models like `gpt-4o-mini` and `gpt-4` use tokens in the same way as older completions models, but because of their message-based formatting, it's more difficult to count how many tokens will be used by a conversation.
-# 
+#
 # Below is an example function for counting tokens for messages passed to `gpt-3.5-turbo`, `gpt-4`, `gpt-4o` and `gpt-4o-mini`.
-# 
+#
 # Note that the exact way that tokens are counted from messages may change from model to model. Consider the counts from the function below an estimate, not a timeless guarantee.
-# 
+#
 # In particular, requests that use the optional functions input will consume extra tokens on top of the estimates calculated below.
 
 # In[14]:
@@ -306,9 +306,9 @@ for model in [
 
 
 # ## 7. Counting tokens for chat completions with tool calls
-# 
-# Next, we will look into how to apply this calculations to messages that may contain function calls. This is not immediately trivial, due to the formatting of the tools themselves. 
-# 
+#
+# Next, we will look into how to apply this calculations to messages that may contain function calls. This is not immediately trivial, due to the formatting of the tools themselves.
+#
 # Below is an example function for counting tokens for messages that contain tools, passed to `gpt-3.5-turbo`, `gpt-4`, `gpt-4o` and `gpt-4o-mini`.
 
 # In[16]:
@@ -409,7 +409,7 @@ tools = [
             "type": "string",
             "description": "The city and state, e.g. San Francisco, CA",
           },
-          "unit": {"type": "string", 
+          "unit": {"type": "string",
                    "description": "The unit of temperature to return",
                    "enum": ["celsius", "fahrenheit"]},
         },

@@ -71,9 +71,7 @@ class TestResponsesAPICalculatorBasics:
     def test_message_with_name_field(self, calculator):
         """Test that name field adds extra tokens."""
         messages_without_name = [{"role": "user", "content": "Hello"}]
-        messages_with_name = [
-            {"role": "user", "name": "Alice", "content": "Hello"}
-        ]
+        messages_with_name = [{"role": "user", "name": "Alice", "content": "Hello"}]
 
         result_without = calculator.count_request_tokens(
             model="gpt-5",

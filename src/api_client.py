@@ -66,7 +66,9 @@ class CircuitBreaker:
                 self.state = "HALF_OPEN"
                 logger.info("Circuit breaker entering HALF_OPEN state")
             else:
-                raise Exception(f"Circuit breaker OPEN (failures: {self.failure_count})")
+                raise Exception(
+                    f"Circuit breaker OPEN (failures: {self.failure_count})"
+                )
 
         try:
             result = func(*args, **kwargs)
@@ -134,11 +136,13 @@ class ResponsesAPIClient:
     @retry(
         wait=wait_exponential(multiplier=1, min=4, max=60),
         stop=stop_after_attempt(5),
-        retry=retry_if_exception_type((
-            RateLimitError,
-            APIConnectionError,
-            APITimeoutError,
-        )),
+        retry=retry_if_exception_type(
+            (
+                RateLimitError,
+                APIConnectionError,
+                APITimeoutError,
+            )
+        ),
         before_sleep=before_sleep_log(logger, logging.WARNING),
     )
     def _call_responses_api_with_retry(
@@ -174,7 +178,7 @@ class ResponsesAPIClient:
                 cast_to=dict,
                 body=payload,
             )
-            logger.info(f"API call successful (OpenAI SDK)")
+            logger.info("API call successful (OpenAI SDK)")
             return response
         except APIConnectionError as err:
             logger.warning(
@@ -234,8 +238,7 @@ class ResponsesAPIClient:
         """
         if use_circuit_breaker:
             return self.circuit_breaker.call(
-                self._call_responses_api_with_retry,
-                payload
+                self._call_responses_api_with_retry, payload
             )
         else:
             return self._call_responses_api_with_retry(payload)
@@ -283,7 +286,9 @@ class ResponsesAPIClient:
         usage = response.get("usage", {})
 
         prompt_tokens = usage.get("prompt_tokens", usage.get("input_tokens", 0))
-        completion_tokens = usage.get("completion_tokens", usage.get("output_tokens", 0))
+        completion_tokens = usage.get(
+            "completion_tokens", usage.get("output_tokens", 0)
+        )
 
         # Extract cached tokens from prompt/input token details
         prompt_tokens_details = usage.get(
@@ -309,7 +314,7 @@ if __name__ == "__main__":
 
     # Initialize client
     client = ResponsesAPIClient()
-    print(f"✅ Client initialized")
+    print("✅ Client initialized")
     print(f"   Timeout: {client.config.api_timeout_seconds}s")
     print(f"   Max retries: {client.config.max_retries}")
 
@@ -322,7 +327,7 @@ if __name__ == "__main__":
     for i in range(3):
         try:
             cb.call(lambda: 1 / 0)  # Raises ZeroDivisionError
-        except:
+        except ZeroDivisionError:
             print(f"   Failure {i + 1} recorded")
 
     print(f"✅ State after 3 failures: {cb.state}")
@@ -335,7 +340,9 @@ if __name__ == "__main__":
     # Test 2: Payload building
     print("\nTest 2: Build test payload")
     test_pdf_content = b"%PDF-1.4\nTest content"
-    test_pdf_base64 = f"data:application/pdf;base64,{base64.b64encode(test_pdf_content).decode()}"
+    test_pdf_base64 = (
+        f"data:application/pdf;base64,{base64.b64encode(test_pdf_content).decode()}"
+    )
 
     payload = build_responses_api_payload(
         filename="test.pdf",
@@ -345,7 +352,7 @@ if __name__ == "__main__":
         source_file_id="file-test-id",
     )
 
-    print(f"✅ Payload built")
+    print("✅ Payload built")
     print(f"   Model: {payload['model']}")
     print(f"   Roles: {[msg['role'] for msg in payload['input']]}")
     print(f"   Has schema: {'text' in payload and 'format' in payload['text']}")
@@ -353,18 +360,18 @@ if __name__ == "__main__":
     # Test 3: Extract output (mock response)
     print("\nTest 3: Extract output from mock response")
     mock_response = {
-        "output": [{
-            "content": [{
-                "text": '{"schema_version": "1.0.0", "doc_type": "Invoice"}'
-            }]
-        }],
+        "output": [
+            {
+                "content": [
+                    {"text": '{"schema_version": "1.0.0", "doc_type": "Invoice"}'}
+                ]
+            }
+        ],
         "usage": {
             "prompt_tokens": 2000,
             "completion_tokens": 500,
-            "prompt_tokens_details": {
-                "cached_tokens": 1800
-            }
-        }
+            "prompt_tokens_details": {"cached_tokens": 1800},
+        },
     }
 
     text = client.extract_output_text(mock_response)

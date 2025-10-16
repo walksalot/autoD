@@ -14,7 +14,9 @@ from typing import Any, Dict, Optional
 
 try:
     import jsonschema  # type: ignore
-except ImportError:  # pragma: no cover - jsonschema is an optional dependency at runtime
+except (
+    ImportError
+):  # pragma: no cover - jsonschema is an optional dependency at runtime
     jsonschema = None
 
 SCHEMA_VERSION = "1.0.0"
@@ -137,7 +139,10 @@ def _base_schema() -> Dict[str, Any]:
                     "additionalProperties": False,
                     "properties": {
                         "description": {"type": "string", "maxLength": 512},
-                        "assignee_suggestion": {"type": ["string", "null"], "maxLength": 256},
+                        "assignee_suggestion": {
+                            "type": ["string", "null"],
+                            "maxLength": 256,
+                        },
                         "due": {"type": ["string", "null"], "maxLength": 128},
                         "priority": {
                             "type": ["string", "null"],
@@ -252,10 +257,17 @@ def _base_schema() -> Dict[str, Any]:
                     "type": "object",
                     "additionalProperties": False,
                     "properties": {
-                        "vector_store_id": {"type": ["string", "null"], "maxLength": 64},
+                        "vector_store_id": {
+                            "type": ["string", "null"],
+                            "maxLength": 64,
+                        },
                         "file_id": {"type": ["string", "null"], "maxLength": 64},
                         "filename": {"type": ["string", "null"], "maxLength": 255},
-                        "score": {"type": ["number", "null"], "minimum": 0.0, "maximum": 1.0},
+                        "score": {
+                            "type": ["number", "null"],
+                            "minimum": 0.0,
+                            "maximum": 1.0,
+                        },
                         "rationale": {"type": ["string", "null"], "maxLength": 1024},
                     },
                     "required": ["score"],
@@ -266,8 +278,14 @@ def _base_schema() -> Dict[str, Any]:
                 "additionalProperties": False,
                 "properties": {
                     "canonical_issuer": {"type": ["string", "null"], "maxLength": 256},
-                    "canonical_account_label": {"type": ["string", "null"], "maxLength": 256},
-                    "property_identifier": {"type": ["string", "null"], "maxLength": 256},
+                    "canonical_account_label": {
+                        "type": ["string", "null"],
+                        "maxLength": 256,
+                    },
+                    "property_identifier": {
+                        "type": ["string", "null"],
+                        "maxLength": 256,
+                    },
                 },
             },
             # Diagnostics
@@ -311,7 +329,11 @@ def build_schema_with_constants(
         source_file_id: Files API ID to embed.
         base_schema: Optional schema to clone (defaults to base schema).
     """
-    schema = deepcopy(base_schema) if base_schema is not None else get_document_extraction_schema()
+    schema = (
+        deepcopy(base_schema)
+        if base_schema is not None
+        else get_document_extraction_schema()
+    )
     overrides = {
         "processed_date": processed_date,
         "original_file_name": original_file_name,
@@ -330,7 +352,9 @@ def validate_response(response_data: Dict[str, Any]) -> tuple[bool, list[str]]:
         (is_valid, errors)
     """
     if jsonschema is None:
-        return False, ["jsonschema library not installed. Run: pip install jsonschema>=4.20.0"]
+        return False, [
+            "jsonschema library not installed. Run: pip install jsonschema>=4.20.0"
+        ]
 
     schema = get_document_extraction_schema()
     try:

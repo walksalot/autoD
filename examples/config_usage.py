@@ -10,7 +10,6 @@ This demonstrates best practices for using the config system:
 """
 
 import os
-from pathlib import Path
 
 # Ensure we have a valid API key for demonstration
 if "OPENAI_API_KEY" not in os.environ:
@@ -51,8 +50,10 @@ def main():
     print(f"   Input Tokens: ${config.prompt_token_price_per_million}/M")
     print(f"   Output Tokens: ${config.completion_token_price_per_million}/M")
     print(f"   Cached Tokens: ${config.cached_token_price_per_million}/M")
-    print(f"   Alert Thresholds: ${config.cost_alert_threshold_1}, "
-          f"${config.cost_alert_threshold_2}, ${config.cost_alert_threshold_3}")
+    print(
+        f"   Alert Thresholds: ${config.cost_alert_threshold_1}, "
+        f"${config.cost_alert_threshold_2}, ${config.cost_alert_threshold_3}"
+    )
 
     # Logging configuration
     print("\n5. Logging configuration:")
@@ -94,8 +95,10 @@ def main():
         os.environ["ENVIRONMENT"] = env
         reset_config()
         c = get_config()
-        print(f"   {env:12} -> dev={c.is_development}, "
-              f"staging={c.is_staging}, prod={c.is_production}")
+        print(
+            f"   {env:12} -> dev={c.is_development}, "
+            f"staging={c.is_staging}, prod={c.is_production}"
+        )
 
     print("\n" + "=" * 70)
     print("Configuration module is ready for use!")

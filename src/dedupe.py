@@ -6,7 +6,7 @@ Prevents reprocessing duplicate documents.
 import hashlib
 import base64
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Tuple
 from sqlalchemy.orm import Session
 
 from src.models import Document
@@ -74,10 +74,14 @@ def check_duplicate(session: Session, sha256_hex: str) -> Optional[Document]:
         ...     if duplicate:
         ...         print(f"Duplicate: {duplicate.original_filename}")
     """
-    return session.query(Document).filter(
-        Document.sha256_hex == sha256_hex,
-        Document.deleted_at.is_(None),  # Exclude soft-deleted documents
-    ).first()
+    return (
+        session.query(Document)
+        .filter(
+            Document.sha256_hex == sha256_hex,
+            Document.deleted_at.is_(None),  # Exclude soft-deleted documents
+        )
+        .first()
+    )
 
 
 def build_vector_store_attributes(
@@ -208,7 +212,7 @@ if __name__ == "__main__":
     from src.models import Document
     import tempfile
     import os
-    from datetime import datetime, date
+    from datetime import date
 
     # Create temporary test file
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdf", delete=False) as f:
@@ -281,7 +285,7 @@ if __name__ == "__main__":
 
             # Test 4: Vector store attributes
             attributes = build_vector_store_attributes(doc)
-            print(f"\n=== Vector Store Attributes ===")
+            print("\n=== Vector Store Attributes ===")
             print(f"✅ Generated {len(attributes)} attributes (max: 16)")
             for key, value in attributes.items():
                 print(f"   {key}: {value}")
@@ -302,6 +306,7 @@ if __name__ == "__main__":
                     f.write(chunk)
 
             import tracemalloc
+
             tracemalloc.start()
 
             hex_large, b64_large = sha256_file(large_test_file)
@@ -309,13 +314,15 @@ if __name__ == "__main__":
             current, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
 
-            print(f"✅ Hashed 100MB file")
+            print("✅ Hashed 100MB file")
             print(f"   Peak memory: {peak / 1024 / 1024:.2f} MB")
 
             if peak < 20 * 1024 * 1024:  # Less than 20MB
                 print("✅ Memory efficient: Used < 20MB for 100MB file")
             else:
-                print(f"⚠️ Memory usage higher than expected: {peak / 1024 / 1024:.2f} MB")
+                print(
+                    f"⚠️ Memory usage higher than expected: {peak / 1024 / 1024:.2f} MB"
+                )
         finally:
             if large_test_file.exists():
                 large_test_file.unlink()

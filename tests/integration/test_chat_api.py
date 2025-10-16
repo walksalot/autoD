@@ -55,9 +55,7 @@ class TestChatAPICalculatorBasics:
     def test_message_with_name_field(self, calculator):
         """Test that name field adds extra tokens."""
         messages_without_name = [{"role": "user", "content": "Hello"}]
-        messages_with_name = [
-            {"role": "user", "name": "Alice", "content": "Hello"}
-        ]
+        messages_with_name = [{"role": "user", "name": "Alice", "content": "Hello"}]
 
         result_without = calculator.count_request_tokens(
             model="gpt-4",
@@ -465,9 +463,7 @@ class TestChatAPICalculatorOverhead:
 
     def test_gpt35_turbo_name_overhead(self, calculator):
         """Test that GPT-3.5-turbo has different name field behavior."""
-        messages_with_name = [
-            {"role": "user", "name": "Alice", "content": "Hello"}
-        ]
+        messages_with_name = [{"role": "user", "name": "Alice", "content": "Hello"}]
 
         result = calculator.count_request_tokens(
             model="gpt-3.5-turbo",

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Union
 
 from pydantic import BaseModel, Field
 
@@ -16,7 +16,9 @@ class TokenCount(BaseModel):
 
     def __str__(self) -> str:
         if self.cached > 0:
-            return f"{self.total} tokens ({self.billable} billable, {self.cached} cached)"
+            return (
+                f"{self.total} tokens ({self.billable} billable, {self.cached} cached)"
+            )
         return f"{self.total} tokens"
 
 
@@ -38,7 +40,9 @@ class TokenEstimate(BaseModel):
     def __str__(self) -> str:
         if self.min_tokens == self.max_tokens:
             return f"{self.min_tokens} tokens ({self.confidence} confidence)"
-        return f"{self.min_tokens}-{self.max_tokens} tokens ({self.confidence} confidence)"
+        return (
+            f"{self.min_tokens}-{self.max_tokens} tokens ({self.confidence} confidence)"
+        )
 
 
 class CostEstimate(BaseModel):
@@ -68,15 +72,13 @@ class TokenResult(BaseModel):
     count: TokenCount = Field(description="Token counts")
     breakdown: Dict[str, int] = Field(
         default_factory=dict,
-        description="Component breakdown (messages, tools, files, etc.)"
+        description="Component breakdown (messages, tools, files, etc.)",
     )
     file_estimate: Optional[TokenEstimate] = Field(
-        None,
-        description="File token estimate if files present"
+        None, description="File token estimate if files present"
     )
     metadata: Dict[str, Union[str, int, float]] = Field(
-        default_factory=dict,
-        description="Additional metadata"
+        default_factory=dict, description="Additional metadata"
     )
 
     def __str__(self) -> str:

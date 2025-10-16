@@ -70,16 +70,14 @@ class ResponsesAPICalculator:
         """Load overhead configuration from YAML file."""
         config_path = Path(config_path)
         if not config_path.exists():
-            raise ConfigurationError(
-                f"Overhead config not found at {config_path}"
-            )
+            raise ConfigurationError(f"Overhead config not found at {config_path}")
 
         with open(config_path) as f:
             config = yaml.safe_load(f)
 
         if not config or "defaults" not in config:
             raise ConfigurationError(
-                f"Invalid overhead config: missing 'defaults' section"
+                "Invalid overhead config: missing 'defaults' section"
             )
 
         return config
@@ -125,9 +123,7 @@ class ResponsesAPICalculator:
         defaults = self.overhead_config["defaults"]
 
         # Get family-specific overrides or use defaults
-        family_config = self.overhead_config.get("model_families", {}).get(
-            family, {}
-        )
+        family_config = self.overhead_config.get("model_families", {}).get(family, {})
 
         return {
             "tokens_per_message": family_config.get(
@@ -268,15 +264,15 @@ class ResponsesAPICalculator:
         if not isinstance(messages, list):
             raise InvalidMessageFormatError("Messages must be a list")
 
-        supported_roles = self.overhead_config.get("api_formats", {}).get(
-            "responses", {}
-        ).get("supported_roles", ["system", "developer", "user", "assistant"])
+        supported_roles = (
+            self.overhead_config.get("api_formats", {})
+            .get("responses", {})
+            .get("supported_roles", ["system", "developer", "user", "assistant"])
+        )
 
         for i, msg in enumerate(messages):
             if not isinstance(msg, dict):
-                raise InvalidMessageFormatError(
-                    f"Message {i} must be a dictionary"
-                )
+                raise InvalidMessageFormatError(f"Message {i} must be a dictionary")
 
             if "role" not in msg:
                 raise InvalidMessageFormatError(

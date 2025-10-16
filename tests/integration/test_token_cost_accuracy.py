@@ -101,7 +101,7 @@ class TestCostCalculationAccuracy:
 
         # Cache cost should be 10% of regular input cost
         regular_cost = 1000 * GPT5_PRICING.input_per_1k / 1000  # $0.010
-        cache_cost = 1000 * GPT5_PRICING.cached_per_1k / 1000   # $0.001
+        cache_cost = 1000 * GPT5_PRICING.cached_per_1k / 1000  # $0.001
 
         assert cost["cache_cost_usd"] == pytest.approx(cache_cost)
         assert cache_cost == pytest.approx(regular_cost * 0.1)
@@ -127,11 +127,12 @@ class TestCostCalculationAccuracy:
         assert cost["cached_tokens"] == 987
         assert cost["billable_input_tokens"] == 247  # 1234 - 987
 
-        # Manual calculation
-        expected_input = 247 * 0.010 / 1000      # $0.00247
-        expected_cache = 987 * 0.001 / 1000      # $0.000987
-        expected_output = 567 * 0.030 / 1000     # $0.01701
-        expected_total = expected_input + expected_cache + expected_output
+        # Manual calculation (new semantics: input_cost = billable + cache)
+        expected_billable = 247 * 0.010 / 1000  # $0.00247
+        expected_cache = 987 * 0.001 / 1000  # $0.000987
+        expected_input = expected_billable + expected_cache  # Total input cost
+        expected_output = 567 * 0.030 / 1000  # $0.01701
+        expected_total = expected_input + expected_output
 
         # Verify within reasonable precision (6 decimal places)
         assert abs(cost["input_cost_usd"] - expected_input) < 1e-6
@@ -154,19 +155,23 @@ class TestProductionScenarios:
         # Remaining 99: 80% cache hit on developer prompt
 
         # Cold start
-        tracker.add_usage({
-            "prompt_tokens": 1200,
-            "output_tokens": 450,
-            "prompt_tokens_details": {"cached_tokens": 0},
-        })
+        tracker.add_usage(
+            {
+                "prompt_tokens": 1200,
+                "output_tokens": 450,
+                "prompt_tokens_details": {"cached_tokens": 0},
+            }
+        )
 
         # Subsequent PDFs with caching
         for _ in range(99):
-            tracker.add_usage({
-                "prompt_tokens": 1200,
-                "output_tokens": 450,
-                "prompt_tokens_details": {"cached_tokens": 960},
-            })
+            tracker.add_usage(
+                {
+                    "prompt_tokens": 1200,
+                    "output_tokens": 450,
+                    "prompt_tokens_details": {"cached_tokens": 960},
+                }
+            )
 
         summary = tracker.summary()
 
@@ -239,7 +244,7 @@ class TestProductionScenarios:
         # Simulate 5% variance in token counting
         usage_5pct_higher = {
             "prompt_tokens": 1050,  # 5% higher
-            "output_tokens": 525,   # 5% higher
+            "output_tokens": 525,  # 5% higher
             "prompt_tokens_details": {"cached_tokens": 0},
         }
 

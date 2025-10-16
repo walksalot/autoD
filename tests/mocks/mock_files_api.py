@@ -24,6 +24,7 @@ import uuid
 @dataclass
 class FileObject:
     """Simulates OpenAI File object returned by Files API."""
+
     id: str
     bytes: int
     created_at: int
@@ -45,12 +46,7 @@ class MockFilesNamespace:
         self.upload_count = 0
         self.delete_count = 0
 
-    def create(
-        self,
-        file: Any,
-        purpose: str = "assistants",
-        **kwargs
-    ) -> FileObject:
+    def create(self, file: Any, purpose: str = "assistants", **kwargs) -> FileObject:
         """Simulate file upload to OpenAI Files API.
 
         Args:
@@ -97,7 +93,7 @@ class MockFilesNamespace:
             created_at=1234567890,
             filename=filename,
             purpose=purpose,
-            status="processed"
+            status="processed",
         )
 
         # Store in registry
@@ -152,11 +148,7 @@ class MockFilesNamespace:
         self.delete_count += 1
         del self._files[file_id]
 
-        return {
-            "id": file_id,
-            "object": "file",
-            "deleted": True
-        }
+        return {"id": file_id, "object": "file", "deleted": True}
 
     def list(self, purpose: Optional[str] = None) -> Dict[str, Any]:
         """List all uploaded files.
@@ -188,10 +180,10 @@ class MockFilesNamespace:
                     "created_at": f.created_at,
                     "filename": f.filename,
                     "purpose": f.purpose,
-                    "status": f.status
+                    "status": f.status,
                 }
                 for f in file_list
-            ]
+            ],
         }
 
     def get_uploaded_files(self) -> List[FileObject]:

@@ -10,9 +10,7 @@ Validates:
 - API integration (mocked)
 """
 
-import pytest
 from pathlib import Path
-from datetime import datetime, timezone
 from unittest.mock import Mock
 
 from src.pipeline import Pipeline, ProcessingContext
@@ -52,7 +50,9 @@ def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_cli
     Validates all 5 stages execute successfully and document is persisted.
     """
     # Build pipeline with all stages
-    responses_api_client = ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))
+    responses_api_client = ResponsesAPIClient(
+        client=ResponsesClientStub(mock_openai_client)
+    )
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
@@ -72,7 +72,9 @@ def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_cli
     assert result.sha256_base64 is not None
     assert result.is_duplicate is False
     assert result.file_id is not None
-    assert result.file_id.startswith("file-")  # MockFilesClient generates random file IDs
+    assert result.file_id.startswith(
+        "file-"
+    )  # MockFilesClient generates random file IDs
     assert result.metadata_json is not None
     assert result.metadata_json["doc_type"] == "Invoice"
     assert result.document_id is not None
@@ -84,12 +86,16 @@ def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_cli
     assert doc.sha256_hex == result.sha256_hex
     assert doc.original_filename == sample_pdf_path.name
     assert doc.source_file_id is not None
-    assert doc.source_file_id.startswith("file-")  # MockFilesClient generates random file IDs
+    assert doc.source_file_id.startswith(
+        "file-"
+    )  # MockFilesClient generates random file IDs
     assert doc.metadata_json["doc_type"] == "Invoice"
     assert doc.status == "completed"
 
 
-def test_pipeline_deduplication_skip_upload(db_session, sample_pdf_path, existing_document, mock_openai_client):
+def test_pipeline_deduplication_skip_upload(
+    db_session, sample_pdf_path, existing_document, mock_openai_client
+):
     """
     Test pipeline short-circuits when duplicate detected.
 
@@ -101,7 +107,9 @@ def test_pipeline_deduplication_skip_upload(db_session, sample_pdf_path, existin
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
+            CallResponsesAPIStage(
+                ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))
+            ),
             PersistToDBStage(db_session),
         ]
     )
@@ -233,7 +241,9 @@ def test_pipeline_with_api_error(db_session, sample_pdf_path):
     assert result.failed_at_stage == "UploadToFilesAPIStage"
 
 
-def test_pipeline_database_commit_on_success(db_session, sample_pdf_path, mock_openai_client):
+def test_pipeline_database_commit_on_success(
+    db_session, sample_pdf_path, mock_openai_client
+):
     """
     Test database transaction commits on successful pipeline execution.
 
@@ -244,7 +254,9 @@ def test_pipeline_database_commit_on_success(db_session, sample_pdf_path, mock_o
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
+            CallResponsesAPIStage(
+                ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))
+            ),
             PersistToDBStage(db_session),
         ]
     )
@@ -319,6 +331,7 @@ def test_pipeline_single_stage():
 
     # Create temporary PDF
     import tempfile
+
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
         f.write(b"%PDF-1.0\ntest")
         pdf_path = Path(f.name)
@@ -366,7 +379,9 @@ def test_pipeline_reuse_with_different_inputs(db_session, tmp_path, mock_openai_
     assert result2.is_duplicate is False
 
 
-def test_full_pipeline_metadata_extraction(db_session, sample_pdf_path, mock_openai_client):
+def test_full_pipeline_metadata_extraction(
+    db_session, sample_pdf_path, mock_openai_client
+):
     """
     Test pipeline correctly extracts and persists metadata.
 
@@ -377,7 +392,9 @@ def test_full_pipeline_metadata_extraction(db_session, sample_pdf_path, mock_ope
             ComputeSHA256Stage(),
             DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
-            CallResponsesAPIStage(ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))),
+            CallResponsesAPIStage(
+                ResponsesAPIClient(client=ResponsesClientStub(mock_openai_client))
+            ),
             PersistToDBStage(db_session),
         ]
     )

@@ -14,7 +14,6 @@ Target: 90%+ coverage
 
 import pytest
 from src.cost_calculator import (
-    PricingTier,
     GPT5_PRICING,
     GPT4O_PRICING,
     GPT4_PRICING,
@@ -143,15 +142,17 @@ class TestCalculateCost:
         assert cost["billable_input_tokens"] == 200  # 1000 - 800
         assert cost["total_tokens"] == 1500
 
-        # Costs
-        assert cost["input_cost_usd"] == pytest.approx(0.002)  # 200 * 0.010 / 1000
+        # Costs (new semantics: input_cost = billable_input + cache)
+        assert cost["input_cost_usd"] == pytest.approx(
+            0.0028
+        )  # (200 * 0.010 + 800 * 0.001) / 1000
         assert cost["output_cost_usd"] == pytest.approx(0.015)  # 500 * 0.030 / 1000
         assert cost["cache_cost_usd"] == pytest.approx(0.0008)  # 800 * 0.001 / 1000
 
         # Cache savings = (800 * 0.010 / 1000) - (800 * 0.001 / 1000) = 0.008 - 0.0008 = 0.0072
         assert cost["cache_savings_usd"] == pytest.approx(0.0072)
 
-        # Total = 0.002 + 0.015 + 0.0008 = 0.0178
+        # Total = input_cost + output_cost = 0.0028 + 0.015 = 0.0178
         assert cost["total_cost_usd"] == pytest.approx(0.0178)
 
     def test_cost_with_full_caching(self):
@@ -166,9 +167,14 @@ class TestCalculateCost:
 
         assert cost["billable_input_tokens"] == 0
         assert cost["cached_tokens"] == 1000
-        assert cost["input_cost_usd"] == pytest.approx(0.0)
+        # New semantics: input_cost includes cache_cost even when billable is 0
+        assert cost["input_cost_usd"] == pytest.approx(
+            0.001
+        )  # 1000 * 0.001 / 1000 (all cached)
         assert cost["cache_cost_usd"] == pytest.approx(0.001)
-        assert cost["cache_savings_usd"] == pytest.approx(0.009)  # 1000 * (0.010 - 0.001) / 1000
+        assert cost["cache_savings_usd"] == pytest.approx(
+            0.009
+        )  # 1000 * (0.010 - 0.001) / 1000
 
     def test_cost_zero_tokens(self):
         """Handle zero token counts gracefully."""
@@ -343,19 +349,23 @@ class TestCostTracker:
         tracker = CostTracker()
 
         # First request: no caching
-        tracker.add_usage({
-            "prompt_tokens": 1000,
-            "output_tokens": 500,
-            "prompt_tokens_details": {"cached_tokens": 0},
-        })
+        tracker.add_usage(
+            {
+                "prompt_tokens": 1000,
+                "output_tokens": 500,
+                "prompt_tokens_details": {"cached_tokens": 0},
+            }
+        )
 
         # Subsequent requests: 80% cache hit
         for _ in range(9):
-            tracker.add_usage({
-                "prompt_tokens": 1000,
-                "output_tokens": 500,
-                "prompt_tokens_details": {"cached_tokens": 800},
-            })
+            tracker.add_usage(
+                {
+                    "prompt_tokens": 1000,
+                    "output_tokens": 500,
+                    "prompt_tokens_details": {"cached_tokens": 800},
+                }
+            )
 
         assert tracker.request_count == 10
         assert tracker.total_cached_tokens == 7200  # 9 * 800
@@ -379,11 +389,13 @@ class TestCostTracker:
         tracker = CostTracker()
 
         for i in range(5):
-            tracker.add_usage({
-                "prompt_tokens": 1000,
-                "output_tokens": 500,
-                "prompt_tokens_details": {"cached_tokens": 800 if i > 0 else 0},
-            })
+            tracker.add_usage(
+                {
+                    "prompt_tokens": 1000,
+                    "output_tokens": 500,
+                    "prompt_tokens_details": {"cached_tokens": 800 if i > 0 else 0},
+                }
+            )
 
         summary = tracker.summary()
 
@@ -398,11 +410,13 @@ class TestCostTracker:
         """Summary text is formatted correctly."""
         tracker = CostTracker()
 
-        tracker.add_usage({
-            "prompt_tokens": 1000,
-            "output_tokens": 500,
-            "prompt_tokens_details": {"cached_tokens": 0},
-        })
+        tracker.add_usage(
+            {
+                "prompt_tokens": 1000,
+                "output_tokens": 500,
+                "prompt_tokens_details": {"cached_tokens": 0},
+            }
+        )
 
         text = tracker.summary_text()
 
@@ -416,17 +430,18 @@ class TestCostTracker:
         tracker = CostTracker()
 
         tracker.add_usage(
-            usage={"prompt_tokens": 1000, "output_tokens": 500},
-            model="gpt-5"
+            usage={"prompt_tokens": 1000, "output_tokens": 500}, model="gpt-5"
         )
 
         tracker.add_usage(
-            usage={"prompt_tokens": 1000, "output_tokens": 500},
-            model="gpt-4o-mini"
+            usage={"prompt_tokens": 1000, "output_tokens": 500}, model="gpt-4o-mini"
         )
 
         # Costs should differ due to different pricing
-        assert tracker.requests[0]["total_cost_usd"] != tracker.requests[1]["total_cost_usd"]
+        assert (
+            tracker.requests[0]["total_cost_usd"]
+            != tracker.requests[1]["total_cost_usd"]
+        )
 
     def test_tracker_empty_average(self):
         """Average cost is 0 when no requests."""

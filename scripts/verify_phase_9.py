@@ -7,7 +7,6 @@ and all components are working correctly.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add project root to PYTHONPATH
@@ -48,30 +47,21 @@ def test_processing_result():
 
         # Test successful result
         result = ProcessingResult(
-            success=True,
-            document_id=123,
-            cost_usd=0.05,
-            processing_time_seconds=3.2
+            success=True, document_id=123, cost_usd=0.05, processing_time_seconds=3.2
         )
-        assert result.success == True
+        assert result.success
         assert result.document_id == 123
         assert result.cost_usd == 0.05
         assert result.processing_time_seconds == 3.2
 
         # Test duplicate result
-        dup_result = ProcessingResult(
-            success=True,
-            duplicate_of=456
-        )
-        assert dup_result.success == True
+        dup_result = ProcessingResult(success=True, duplicate_of=456)
+        assert dup_result.success
         assert dup_result.duplicate_of == 456
 
         # Test failed result
-        fail_result = ProcessingResult(
-            success=False,
-            error="Test error"
-        )
-        assert fail_result.success == False
+        fail_result = ProcessingResult(success=False, error="Test error")
+        assert not fail_result.success
         assert fail_result.error == "Test error"
 
         print("✅ ProcessingResult class: All tests passed")
@@ -91,66 +81,42 @@ def main():
 
     # 1. Check core files exist
     print("--- File Existence Checks ---")
-    checks.append(check_file_exists(
-        Path("src/processor.py"),
-        "Processor module"
-    ))
-    checks.append(check_file_exists(
-        Path("process_inbox.py"),
-        "CLI script"
-    ))
-    checks.append(check_file_exists(
-        Path("docs/PROCESSOR_GUIDE.md"),
-        "Processor documentation"
-    ))
-    checks.append(check_file_exists(
-        Path("PHASE_9_HANDOFF.json"),
-        "Handoff report"
-    ))
-    checks.append(check_file_exists(
-        Path("PHASE_9_SUMMARY.md"),
-        "Summary document"
-    ))
+    checks.append(check_file_exists(Path("src/processor.py"), "Processor module"))
+    checks.append(check_file_exists(Path("process_inbox.py"), "CLI script"))
+    checks.append(
+        check_file_exists(Path("docs/PROCESSOR_GUIDE.md"), "Processor documentation")
+    )
+    checks.append(check_file_exists(Path("PHASE_9_HANDOFF.json"), "Handoff report"))
+    checks.append(check_file_exists(Path("PHASE_9_SUMMARY.md"), "Summary document"))
     print()
 
     # 2. Check imports
     print("--- Import Checks ---")
-    checks.append(check_import(
-        "src.processor",
-        ["ProcessingResult", "encode_pdf_to_base64", "process_document", "process_inbox"]
-    ))
-    checks.append(check_import(
-        "src.config",
-        ["get_config"]
-    ))
-    checks.append(check_import(
-        "src.database",
-        ["DatabaseManager"]
-    ))
-    checks.append(check_import(
-        "src.api_client",
-        ["ResponsesAPIClient"]
-    ))
-    checks.append(check_import(
-        "src.vector_store",
-        ["VectorStoreManager"]
-    ))
-    checks.append(check_import(
-        "src.dedupe",
-        ["deduplicate_and_hash", "build_vector_store_attributes"]
-    ))
-    checks.append(check_import(
-        "src.schema",
-        ["validate_response"]
-    ))
-    checks.append(check_import(
-        "src.prompts",
-        ["build_responses_api_payload"]
-    ))
-    checks.append(check_import(
-        "src.token_counter",
-        ["calculate_cost", "check_cost_alerts"]
-    ))
+    checks.append(
+        check_import(
+            "src.processor",
+            [
+                "ProcessingResult",
+                "encode_pdf_to_base64",
+                "process_document",
+                "process_inbox",
+            ],
+        )
+    )
+    checks.append(check_import("src.config", ["get_config"]))
+    checks.append(check_import("src.database", ["DatabaseManager"]))
+    checks.append(check_import("src.api_client", ["ResponsesAPIClient"]))
+    checks.append(check_import("src.vector_store", ["VectorStoreManager"]))
+    checks.append(
+        check_import(
+            "src.dedupe", ["deduplicate_and_hash", "build_vector_store_attributes"]
+        )
+    )
+    checks.append(check_import("src.schema", ["validate_response"]))
+    checks.append(check_import("src.prompts", ["build_responses_api_payload"]))
+    checks.append(
+        check_import("src.token_counter", ["calculate_cost", "check_cost_alerts"])
+    )
     print()
 
     # 3. Test ProcessingResult class

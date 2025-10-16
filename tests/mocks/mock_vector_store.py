@@ -22,16 +22,20 @@ import uuid
 @dataclass
 class VectorStore:
     """Simulates OpenAI Vector Store object."""
+
     id: str
     name: str
     created_at: int = 1234567890
-    file_counts: Dict[str, int] = field(default_factory=lambda: {"total": 0, "completed": 0})
+    file_counts: Dict[str, int] = field(
+        default_factory=lambda: {"total": 0, "completed": 0}
+    )
     status: str = "completed"
 
 
 @dataclass
 class VectorStoreFile:
     """Simulates OpenAI Vector Store File object."""
+
     id: str
     vector_store_id: str
     file_id: str
@@ -49,12 +53,7 @@ class MockVectorStoreFilesNamespace:
         self.create_count = 0
         self.update_count = 0
 
-    def create(
-        self,
-        vector_store_id: str,
-        file_id: str,
-        **kwargs
-    ) -> VectorStoreFile:
+    def create(self, vector_store_id: str, file_id: str, **kwargs) -> VectorStoreFile:
         """Attach a file to a vector store.
 
         Args:
@@ -83,7 +82,7 @@ class MockVectorStoreFilesNamespace:
             id=vs_file_id,
             vector_store_id=vector_store_id,
             file_id=file_id,
-            status="completed"
+            status="completed",
         )
 
         self._files[vs_file_id] = vs_file
@@ -91,11 +90,7 @@ class MockVectorStoreFilesNamespace:
         return vs_file
 
     def update(
-        self,
-        vector_store_id: str,
-        file_id: str,
-        attributes: Dict[str, Any],
-        **kwargs
+        self, vector_store_id: str, file_id: str, attributes: Dict[str, Any], **kwargs
     ) -> VectorStoreFile:
         """Update file attributes in vector store.
 
@@ -164,11 +159,7 @@ class MockVectorStoreFilesNamespace:
 
         del self._files[file_id]
 
-        return {
-            "id": file_id,
-            "object": "vector_store.file",
-            "deleted": True
-        }
+        return {"id": file_id, "object": "vector_store.file", "deleted": True}
 
     def list(self, vector_store_id: str) -> Dict[str, Any]:
         """List all files in a vector store.
@@ -180,8 +171,7 @@ class MockVectorStoreFilesNamespace:
             Dictionary with list of files
         """
         files = [
-            f for f in self._files.values()
-            if f.vector_store_id == vector_store_id
+            f for f in self._files.values() if f.vector_store_id == vector_store_id
         ]
 
         return {
@@ -193,10 +183,10 @@ class MockVectorStoreFilesNamespace:
                     "file_id": f.file_id,
                     "created_at": f.created_at,
                     "status": f.status,
-                    "attributes": f.attributes
+                    "attributes": f.attributes,
                 }
                 for f in files
-            ]
+            ],
         }
 
 
@@ -230,11 +220,7 @@ class MockVectorStoresNamespace:
         # Generate unique vector store ID
         vs_id = f"vs-{uuid.uuid4().hex[:24]}"
 
-        vs = VectorStore(
-            id=vs_id,
-            name=name,
-            status="completed"
-        )
+        vs = VectorStore(id=vs_id, name=name, status="completed")
 
         self._stores[vs_id] = vs
 
@@ -271,11 +257,7 @@ class MockVectorStoresNamespace:
 
         del self._stores[vector_store_id]
 
-        return {
-            "id": vector_store_id,
-            "object": "vector_store",
-            "deleted": True
-        }
+        return {"id": vector_store_id, "object": "vector_store", "deleted": True}
 
     def list(self) -> Dict[str, Any]:
         """List all vector stores.
@@ -291,10 +273,10 @@ class MockVectorStoresNamespace:
                     "name": vs.name,
                     "created_at": vs.created_at,
                     "file_counts": vs.file_counts,
-                    "status": vs.status
+                    "status": vs.status,
                 }
                 for vs in self._stores.values()
-            ]
+            ],
         }
 
 

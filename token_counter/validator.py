@@ -99,7 +99,11 @@ class TokenValidator:
         # Calculate delta
         estimated = result.count.total
         delta = estimated - actual["prompt_tokens"]
-        delta_pct = (delta / actual["prompt_tokens"] * 100) if actual["prompt_tokens"] > 0 else 0
+        delta_pct = (
+            (delta / actual["prompt_tokens"] * 100)
+            if actual["prompt_tokens"] > 0
+            else 0
+        )
 
         return ValidationResult(
             model=model,
@@ -209,9 +213,11 @@ class TokenValidator:
                 "prompt_tokens": usage.prompt_tokens,
                 "completion_tokens": getattr(usage, "completion_tokens", 0),
                 "total_tokens": getattr(usage, "total_tokens", 0),
-                "cached_tokens": getattr(usage, "prompt_tokens_details", {}).get("cached_tokens", 0)
-                if hasattr(usage, "prompt_tokens_details")
-                else 0,
+                "cached_tokens": (
+                    getattr(usage, "prompt_tokens_details", {}).get("cached_tokens", 0)
+                    if hasattr(usage, "prompt_tokens_details")
+                    else 0
+                ),
             }
         else:
             # Dictionary
@@ -219,7 +225,9 @@ class TokenValidator:
                 "prompt_tokens": usage.get("prompt_tokens", 0),
                 "completion_tokens": usage.get("completion_tokens", 0),
                 "total_tokens": usage.get("total_tokens", 0),
-                "cached_tokens": usage.get("prompt_tokens_details", {}).get("cached_tokens", 0),
+                "cached_tokens": usage.get("prompt_tokens_details", {}).get(
+                    "cached_tokens", 0
+                ),
             }
 
     def batch_validate(
