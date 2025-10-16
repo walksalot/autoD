@@ -1,118 +1,108 @@
-# Workstream 4: Test Infrastructure
+# Workstream 1: Database + Pipeline Foundation
 
-**Worktree**: autoD-testing
-**Branch**: workstream/testing
-**Duration**: 6-8 hours (Day 0-7)
-**Dependencies**: None (fully parallel - can run alongside all others)
+**Worktree**: autoD-database-pipeline
+**Branch**: workstream/database-pipeline
+**Duration**: 8-12 hours (Day 0-3)
+**Dependencies**: None (can start immediately)
 
 ---
 
 ## Initial Prompt for Claude Session
 
 ```
-You are implementing Test Infrastructure for the autoD project.
+ultrathink: You are implementing the Database + Pipeline Foundation for the autoD project.
 
 CONTEXT - READ THESE FIRST:
-- docs/CODE_ARCHITECTURE.md (section 10: Testing Patterns)
-- docs/IMPLEMENTATION_ROADMAP.md (Week 1-3: Testing sections)
+- docs/CODE_ARCHITECTURE.md (sections 3-4: Database Models, Pipeline Pattern)
+- docs/IMPLEMENTATION_ROADMAP.md (Week 1: Core Pipeline section)
+- AGENTS.md (repository conventions)
 
-WORKFLOW (follow "Write Tests, Commit; Code, Iterate, Commit" - TDD):
-1. READ: Understand testing patterns from CODE_ARCHITECTURE.md
-2. PLAN: Design test infrastructure (fixtures, mocks, utilities)
-3. CODE: Build test infrastructure incrementally
-4. VALIDATE: Run tests to ensure infrastructure works
+WORKFLOW (follow "Explore, Plan, Code, Commit" pattern):
+1. EXPLORE: Read the files above to understand architecture
+2. PLAN: Create a detailed implementation plan. DO NOT CODE YET. Show me the plan first.
+3. CODE: After I approve the plan, implement it incrementally
+4. COMMIT: Create commits with descriptive messages as you complete major components
 
 DELIVERABLES:
-1. pytest configuration (tests/conftest.py):
-   - Database fixtures (in-memory SQLite for fast tests)
-   - Mock OpenAI client (returns realistic responses without API calls)
-   - Sample PDF fixtures (invoice, receipt, multi-page document)
-   - Test environment setup/teardown
-
-2. Mock patterns (tests/mocks/):
-   - mock_openai.py: Mock Responses API with realistic metadata
-   - mock_files_api.py: Mock Files API for upload/download
-   - mock_vector_store.py: Mock vector store operations
-   - Error simulation utilities (RateLimitError, Timeout, APIError)
-
-3. Test fixtures (tests/fixtures/):
-   - Generate sample PDFs programmatically (don't commit actual PDFs to git)
-   - Expected metadata JSON for each sample PDF
-   - SHA-256 hash values for deduplication tests
-   - API response templates
-
-4. Test utilities (tests/utils.py):
-   - create_test_pdf() - Generate PDFs on-demand
-   - assert_document_equal() - Compare database records
-   - capture_logs() - Log assertion helper
-   - simulate_api_error() - Error injection for retry testing
+1. SQLAlchemy Document model with generic JSON type (NOT JSONB)
+2. Pipeline pattern infrastructure (ProcessingContext, ProcessingStage ABC, Pipeline orchestrator)
+3. Five pipeline stages:
+   - ComputeSHA256Stage: File hashing (hashlib.sha256)
+   - DedupeCheckStage: Database deduplication query
+   - UploadToFilesAPIStage: Upload PDF to OpenAI Files API
+   - CallResponsesAPIStage: Extract metadata via Responses API
+   - PersistToDBStage: Save to database
+4. Unit tests with 80%+ coverage
 
 SUCCESS CRITERIA:
-✅ pytest runs with all fixtures working (pytest tests/ -v)
-✅ Mock OpenAI client returns realistic structured output
-✅ Test PDFs generate correct SHA-256 hashes
-✅ Database fixtures support parallel test execution (pytest -n auto)
-✅ Test utilities simplify test authoring
-✅ All fixtures documented with examples
+✅ Document table created with Alembic migration
+✅ Pipeline processes 1 PDF end-to-end without errors
+✅ SHA-256 deduplication prevents duplicates (test with identical PDFs)
+✅ All 5 stages execute in correct order
+✅ Unit tests pass: pytest tests/ -v
+✅ Type checking passes: mypy src/
 
 IMPORTANT:
-- DO NOT create mock implementations of business logic (that's tested, not mocked)
-- DO create mock implementations of external APIs (OpenAI, vector stores)
-- Follow pytest best practices (use fixtures, not setUp/tearDown)
-- Ensure tests are deterministic (no random data without seed)
+- Use docs/CODE_ARCHITECTURE.md as your implementation guide (copy patterns exactly)
+- NEVER use JSONB type - use generic JSON type for SQLite compatibility
+- Follow PEP 8 and black formatting
+- DO NOT implement retry logic (that's Workstream 2)
+- DO NOT implement token tracking (that's Workstream 3)
 
 INTEGRATION CHECKPOINT: Day 3
-Merge with Workstream 1 to enable testing pipeline implementation immediately.
+You'll merge with Workstream 4 (testing infrastructure) to create the foundation branch.
 
-Ready? Read the docs and create your plan.
+Ready to begin? Start by reading the docs and creating your plan.
 ```
 
 ---
 
 ## Progress Tracking
 
-Create `progress.md` in this worktree:
+Update `progress.md` in this worktree hourly:
 
 ```markdown
-# Workstream 4: Test Infrastructure
+# Workstream 1: Database + Pipeline
 
-**Status**: 🟢 On Track
-**Progress**: X/8 tasks complete (X%)
+**Status**: 🟢 On Track / 🟡 At Risk / 🔴 Blocked
+**Progress**: X/10 tasks complete (X%)
 **ETA**: Day 3 (on schedule)
 
 ## Completed
 - ✅ Task 1
+- ✅ Task 2
 
 ## In Progress
-- 🔄 Task 2
+- 🔄 Task 3
 
 ## Pending
-- ⏳ Task 3
+- ⏳ Task 4
+- ⏳ Task 5
 
 ## Blockers
 - None
+
+## Next Steps
+1. Step 1
+2. Step 2
 ```
 
 ---
 
 ## Best Practices
 
-1. **Write Tests, Commit; Code, Iterate, Commit** (TDD):
-   - Write test infrastructure first
-   - Run tests to confirm they work
-   - Commit the test infrastructure
-   - Use these fixtures in other workstreams
+1. **Be Specific**: Instead of "add deduplication", say "Implement DedupeCheckStage that queries Document table using session.query(Document).filter_by(sha256_hex=ctx.sha256_hex).first()..."
 
-2. **Visual Targets**: If you have screenshots of ideal test output, drag them into Claude session
+2. **Use /clear Frequently**: Between major components (after models, after pipeline pattern, after each stage)
 
-3. **Be Specific**: "Create mock_openai.py that returns a Responses API response with file_name, doc_type, issuer, primary_date, total_amount, and summary fields matching the schema in docs/CODE_ARCHITECTURE.md section 3."
+3. **Course Correct Early**: If Claude starts implementing retry logic or token tracking, interrupt (Escape) and redirect
+
+4. **Create Checklists**: Use `implementation_checklist.md` to track systematic progress
 
 ---
 
 ## Integration Handoff (Day 3)
 
-**What gets merged**: Complete test infrastructure that Workstream 1, 2, 3 can use immediately.
+**What gets merged**: Complete pipeline implementation that can process PDFs but may fail on API errors (retry logic added in Workstream 2).
 
-**Merge with**: Workstream 1 (database + pipeline) to create `integration/week1-foundation` branch.
-
-**Why Together**: Testing infrastructure provides immediate validation for pipeline implementation, creating a testable foundation.
+**Merge with**: Workstream 4 (testing infrastructure) to create `integration/week1-foundation` branch.
