@@ -28,7 +28,7 @@ Usage:
 """
 
 from typing import Any, Dict, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 
 
 # GPT-5 Pricing Constants (USD per 1K tokens)
@@ -37,9 +37,9 @@ from dataclasses import dataclass, asdict
 class PricingTier:
     """Immutable pricing tier for a specific model."""
 
-    input_per_1k: float      # Cost per 1K input tokens
-    output_per_1k: float     # Cost per 1K output tokens
-    cached_per_1k: float     # Cost per 1K cached input tokens (10% of input)
+    input_per_1k: float  # Cost per 1K input tokens
+    output_per_1k: float  # Cost per 1K output tokens
+    cached_per_1k: float  # Cost per 1K cached input tokens (10% of input)
 
     def __str__(self) -> str:
         return (
@@ -51,22 +51,22 @@ class PricingTier:
 
 # GPT-5 Pricing (Primary model for autoD)
 GPT5_PRICING = PricingTier(
-    input_per_1k=0.010,    # $10.00 per 1M tokens
-    output_per_1k=0.030,   # $30.00 per 1M tokens
-    cached_per_1k=0.001,   # $1.00 per 1M tokens (10% discount)
+    input_per_1k=0.010,  # $10.00 per 1M tokens
+    output_per_1k=0.030,  # $30.00 per 1M tokens
+    cached_per_1k=0.001,  # $1.00 per 1M tokens (10% discount)
 )
 
 # Alternative pricing tiers (for future use)
 GPT4O_PRICING = PricingTier(
-    input_per_1k=0.0025,   # $2.50 per 1M tokens
-    output_per_1k=0.010,   # $10.00 per 1M tokens
-    cached_per_1k=0.00025, # $0.25 per 1M tokens
+    input_per_1k=0.0025,  # $2.50 per 1M tokens
+    output_per_1k=0.010,  # $10.00 per 1M tokens
+    cached_per_1k=0.00025,  # $0.25 per 1M tokens
 )
 
 GPT4_PRICING = PricingTier(
-    input_per_1k=0.030,    # $30.00 per 1M tokens
-    output_per_1k=0.060,   # $60.00 per 1M tokens
-    cached_per_1k=0.003,   # $3.00 per 1M tokens
+    input_per_1k=0.030,  # $30.00 per 1M tokens
+    output_per_1k=0.060,  # $60.00 per 1M tokens
+    cached_per_1k=0.003,  # $3.00 per 1M tokens
 )
 
 # Model name to pricing mapping
@@ -109,6 +109,7 @@ def get_pricing_for_model(model: str) -> PricingTier:
 
     # Default to GPT-5 pricing (most common for autoD)
     import logging
+
     logging.warning(
         f"Unknown model '{model}', defaulting to GPT-5 pricing. "
         f"Add model to MODEL_PRICING_MAP if this is incorrect."
@@ -191,9 +192,10 @@ def calculate_cost(
     billable_input_tokens = max(prompt_tokens - cached_tokens, 0)
 
     # Calculate costs (convert from per-1K to actual cost)
-    input_cost_usd = (billable_input_tokens / 1000.0) * pricing.input_per_1k
-    output_cost_usd = (output_tokens / 1000.0) * pricing.output_per_1k
+    billable_input_cost_usd = (billable_input_tokens / 1000.0) * pricing.input_per_1k
     cache_cost_usd = (cached_tokens / 1000.0) * pricing.cached_per_1k
+    input_cost_usd = billable_input_cost_usd + cache_cost_usd
+    output_cost_usd = (output_tokens / 1000.0) * pricing.output_per_1k
 
     # Calculate cache savings (what we would have paid without caching)
     # Savings = (cached_tokens * input_price) - (cached_tokens * cached_price)
@@ -202,7 +204,7 @@ def calculate_cost(
     )
 
     # Total cost
-    total_cost_usd = input_cost_usd + output_cost_usd + cache_cost_usd
+    total_cost_usd = input_cost_usd + output_cost_usd
 
     return {
         # Token counts
@@ -211,14 +213,12 @@ def calculate_cost(
         "cached_tokens": cached_tokens,
         "billable_input_tokens": billable_input_tokens,
         "total_tokens": prompt_tokens + output_tokens,
-
         # Cost breakdown (USD)
         "input_cost_usd": round(input_cost_usd, 6),
         "output_cost_usd": round(output_cost_usd, 6),
         "cache_cost_usd": round(cache_cost_usd, 6),
         "cache_savings_usd": round(cache_savings_usd, 6),
         "total_cost_usd": round(total_cost_usd, 6),
-
         # Metadata
         "pricing_tier": str(pricing),
     }

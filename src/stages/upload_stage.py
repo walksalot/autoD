@@ -63,11 +63,14 @@ class UploadToFilesAPIStage(ProcessingStage):
             ValueError: If pdf_bytes not set (previous stage failed)
             openai.APIError: If upload fails
         """
-        if not context.pdf_bytes:
-            raise ValueError("pdf_bytes not set - ComputeSHA256Stage must run first")
+        if context.pdf_bytes is None:
+            with open(context.pdf_path, "rb") as f:
+                context.pdf_bytes = f.read()
+        if context.sha256_hex is None:
+            raise ValueError("sha256_hex not set - ComputeSHA256Stage must run first")
 
         logger.info(
-            f"Uploading PDF to Files API",
+            "Uploading PDF to Files API",
             extra={
                 "pdf_path": str(context.pdf_path),
                 "file_size_bytes": len(context.pdf_bytes),
@@ -85,10 +88,12 @@ class UploadToFilesAPIStage(ProcessingStage):
         context.file_id = response.id
         context.source_file_id = response.id
         if not context.processed_at:
-            context.processed_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            context.processed_at = datetime.now(timezone.utc).isoformat(
+                timespec="seconds"
+            )
 
         logger.info(
-            f"Upload successful",
+            "Upload successful",
             extra={
                 "pdf_path": str(context.pdf_path),
                 "file_id": context.file_id,

@@ -49,8 +49,19 @@ def reset_env():
 class TestConfigValidation:
     """Test configuration validation rules."""
 
-    def test_missing_api_key_raises_error(self):
+    def test_missing_api_key_raises_error(self, monkeypatch):
         """Test that missing API key raises ValidationError."""
+        # Ensure API key is completely unset (including from shell environment)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("openai_api_key", raising=False)
+
+        # Also prevent loading from ~/.OPENAI_API_KEY file
+        # Mock both exists() and read_text() to prevent file loading
+        def mock_exists(self):
+            return False
+
+        monkeypatch.setattr(Path, "exists", mock_exists)
+
         with pytest.raises(ValidationError) as exc_info:
             Config()
 
@@ -80,13 +91,15 @@ class TestConfigValidation:
 
     def test_custom_values_override_defaults(self):
         """Test that custom environment values override defaults."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "OPENAI_MODEL": "gpt-5",
-            "API_TIMEOUT_SECONDS": "450",
-            "MAX_RETRIES": "8",
-            "BATCH_SIZE": "20",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "OPENAI_MODEL": "gpt-5",
+                "API_TIMEOUT_SECONDS": "450",
+                "MAX_RETRIES": "8",
+                "BATCH_SIZE": "20",
+            }
+        )
 
         config = Config()
 
@@ -120,10 +133,12 @@ class TestModelValidation:
 
     def test_gpt4o_rejected(self):
         """Test that gpt-4o is explicitly rejected per CLAUDE.md."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "OPENAI_MODEL": "gpt-4o",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "OPENAI_MODEL": "gpt-4o",
+            }
+        )
 
         with pytest.raises(ValidationError) as exc_info:
             Config()
@@ -272,10 +287,12 @@ class TestEnvironmentProperties:
 
     def test_development_environment(self):
         """Test development environment properties."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "ENVIRONMENT": "development",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "ENVIRONMENT": "development",
+            }
+        )
 
         config = Config()
 
@@ -286,10 +303,12 @@ class TestEnvironmentProperties:
 
     def test_staging_environment(self):
         """Test staging environment properties."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "ENVIRONMENT": "staging",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "ENVIRONMENT": "staging",
+            }
+        )
 
         config = Config()
 
@@ -300,10 +319,12 @@ class TestEnvironmentProperties:
 
     def test_production_environment(self):
         """Test production environment properties."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "ENVIRONMENT": "production",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "ENVIRONMENT": "production",
+            }
+        )
 
         config = Config()
 
@@ -353,10 +374,12 @@ class TestSafeRepr:
 
     def test_repr_redacts_database_password(self):
         """Test that __repr__ redacts database passwords."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "PAPER_AUTOPILOT_DB_URL": "postgresql://user:secret@localhost:5432/db",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "PAPER_AUTOPILOT_DB_URL": "postgresql://user:secret@localhost:5432/db",
+            }
+        )
 
         config = Config()
         repr_str = repr(config)
@@ -372,30 +395,36 @@ class TestCaseInsensitiveEnvVars:
 
     def test_uppercase_env_vars(self):
         """Test that UPPERCASE env vars work."""
-        os.environ.update({
-            "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
-            "OPENAI_MODEL": "gpt-5",
-        })
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "OPENAI_MODEL": "gpt-5",
+            }
+        )
 
         config = Config()
         assert config.openai_model == "gpt-5"
 
     def test_lowercase_env_vars(self):
         """Test that lowercase env vars work."""
-        os.environ.update({
-            "openai_api_key": "sk-test-1234567890abcdef1234567890",
-            "openai_model": "gpt-5-nano",
-        })
+        os.environ.update(
+            {
+                "openai_api_key": "sk-test-1234567890abcdef1234567890",
+                "openai_model": "gpt-5-nano",
+            }
+        )
 
         config = Config()
         assert config.openai_model == "gpt-5-nano"
 
     def test_mixed_case_env_vars(self):
         """Test that mixed case env vars work."""
-        os.environ.update({
-            "OpenAI_API_Key": "sk-test-1234567890abcdef1234567890",
-            "OpenAI_Model": "gpt-5-pro",
-        })
+        os.environ.update(
+            {
+                "OpenAI_API_Key": "sk-test-1234567890abcdef1234567890",
+                "OpenAI_Model": "gpt-5-pro",
+            }
+        )
 
         config = Config()
         assert config.openai_model == "gpt-5-pro"

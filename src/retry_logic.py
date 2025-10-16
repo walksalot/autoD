@@ -23,7 +23,7 @@ Usage:
 """
 
 from tenacity import (
-    retry,
+    retry as _tenacity_retry,
     stop_after_attempt,
     wait_exponential,
     retry_if_exception,
@@ -80,7 +80,7 @@ def is_retryable_api_error(exception: BaseException) -> bool:
 
     # Retry server errors (5xx), but not client errors (4xx)
     if isinstance(exception, APIError):
-        if hasattr(exception, 'status_code'):
+        if hasattr(exception, "status_code"):
             status_code = exception.status_code
             is_server_error = status_code >= 500
             logger.info(f"API error {status_code}: retryable={is_server_error}")
@@ -109,13 +109,29 @@ def is_retryable_api_error(exception: BaseException) -> bool:
     return False
 
 
-@retry(
-    retry=retry_if_exception(is_retryable_api_error),
-    stop=stop_after_attempt(5),
-    wait=wait_exponential(multiplier=1, min=2, max=60),
-    before_sleep=before_sleep_log(logger, logging.WARNING),
-    reraise=True,
-)
+def retry(*, max_attempts: int = 5, initial_wait: float = 2.0, max_wait: float = 60.0):
+    """
+    Decorator that retries a function when `is_retryable_api_error` returns True.
+
+    Args:
+        max_attempts: Maximum attempts before giving up.
+        initial_wait: Base multiplier for exponential backoff (seconds).
+        max_wait: Maximum wait between retries.
+    """
+
+    def decorator(func):
+        return _tenacity_retry(
+            retry=retry_if_exception(is_retryable_api_error),
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential(multiplier=initial_wait, max=max_wait),
+            before_sleep=before_sleep_log(logger, logging.WARNING),
+            reraise=True,
+        )(func)
+
+    return decorator
+
+
+@retry()
 def call_openai_with_retry(client, **kwargs):
     """
     Call OpenAI Responses API with exponential backoff retry.
