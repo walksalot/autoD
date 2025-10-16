@@ -61,7 +61,13 @@ python3 -m src.processor --file test.pdf
 
 # 9. Start production processing
 python3 process_inbox.py
+
+# Alternative: Start daemon for automatic processing
+# See docs/DAEMON_MODE.md for full daemon setup instructions
+python3 run_daemon.py
 ```
+
+**Note**: For automatic file watching (recommended for ScanSnap integration), see **[Daemon Mode Setup](./DAEMON_MODE.md)** for complete instructions on macOS LaunchAgent and Linux systemd configuration.
 
 ---
 
@@ -572,6 +578,7 @@ Next Steps: [Planned actions]
 
 ## References
 
+- **Daemon Mode Setup**: `docs/DAEMON_MODE.md` (automatic file watching for ScanSnap integration)
 - **Code Architecture**: `docs/CODE_ARCHITECTURE.md`
 - **Processor Guide**: `docs/PROCESSOR_GUIDE.md`
 - **Troubleshooting**: `docs/TROUBLESHOOTING.md`
