@@ -1,0 +1,64 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  nightly-tests:
+    name: Comprehensive Test Suite
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.9
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.9'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run all tests with coverage
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ENVIRONMENT: testing
+      run: |
+        pytest --cov=src --cov-report=html --cov-report=term-missing -v --durations=20
+
+    - name: Upload coverage HTML report
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: htmlcov/
+        retention-days: 30
+
+    - name: Check for dependency updates
+      run: |
+        pip install pip-audit
+        pip-audit --desc || true
+
+    - name: Benchmark tests
+      run: |
+        pytest --benchmark-only -v || echo "No benchmark tests found"
+
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v7
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Nightly test failure on ' + new Date().toISOString().split('T')[0],
+            body: 'Nightly tests failed. Check the workflow run: ' + context.payload.repository.html_url + '/actions/runs/' + context.runId,
+            labels: ['nightly-failure', 'automated']
+          })

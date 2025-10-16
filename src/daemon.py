@@ -298,7 +298,7 @@ class DaemonManager:
                             f"Duplicate detected: {file_path.name} (original ID: {result.duplicate_of})",
                             extra={
                                 "event": "duplicate_detected",
-                                "filename": file_path.name,
+                                "pdf_filename": file_path.name,
                                 "duplicate_of": result.duplicate_of,
                             },
                         )
@@ -312,7 +312,7 @@ class DaemonManager:
                             f"Time: {result.processing_time_seconds:.2f}s)",
                             extra={
                                 "event": "processing_success",
-                                "filename": file_path.name,
+                                "pdf_filename": file_path.name,
                                 "document_id": result.document_id,
                                 "cost_usd": result.cost_usd,
                                 "processing_time": result.processing_time_seconds,
@@ -326,7 +326,7 @@ class DaemonManager:
                         f"Processing failed: {file_path.name} - {result.error}",
                         extra={
                             "event": "processing_failed",
-                            "filename": file_path.name,
+                            "pdf_filename": file_path.name,
                             "error": result.error,
                         },
                     )
