@@ -1,0 +1,8 @@
+{
+  "file_name": "bank-statement-q1.pdf",
+  "doc_type": "BankStatement",
+  "issuer": "Chase Bank",
+  "primary_date": "2024-03-31",
+  "total_amount": null,
+  "summary": "Quarterly bank statement showing transactions and balances."
+}
