@@ -26,7 +26,7 @@ from src.stages import (
 from src.models import Document
 
 
-def test_full_pipeline_success_path(test_db_session, sample_pdf_path, mock_openai_client):
+def test_full_pipeline_success_path(db_session, sample_pdf_path, mock_openai_client):
     """
     Test complete pipeline execution for new document.
 
@@ -36,10 +36,10 @@ def test_full_pipeline_success_path(test_db_session, sample_pdf_path, mock_opena
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
             CallResponsesAPIStage(mock_openai_client),
-            PersistToDBStage(test_db_session),
+            PersistToDBStage(db_session),
         ]
     )
 
@@ -51,23 +51,25 @@ def test_full_pipeline_success_path(test_db_session, sample_pdf_path, mock_opena
     assert result.sha256_hex is not None
     assert result.sha256_base64 is not None
     assert result.is_duplicate is False
-    assert result.file_id == "file-test123abc"
+    assert result.file_id is not None
+    assert result.file_id.startswith("file-")  # MockFilesClient generates random file IDs
     assert result.metadata_json is not None
     assert result.metadata_json["doc_type"] == "Invoice"
     assert result.document_id is not None
     assert result.error is None
 
     # Verify database record created
-    doc = test_db_session.query(Document).filter_by(id=result.document_id).first()
+    doc = db_session.query(Document).filter_by(id=result.document_id).first()
     assert doc is not None
     assert doc.sha256_hex == result.sha256_hex
     assert doc.original_filename == sample_pdf_path.name
-    assert doc.source_file_id == "file-test123abc"
+    assert doc.source_file_id is not None
+    assert doc.source_file_id.startswith("file-")  # MockFilesClient generates random file IDs
     assert doc.metadata_json["doc_type"] == "Invoice"
     assert doc.status == "completed"
 
 
-def test_pipeline_deduplication_skip_upload(test_db_session, sample_pdf_path, existing_document, mock_openai_client):
+def test_pipeline_deduplication_skip_upload(db_session, sample_pdf_path, existing_document, mock_openai_client):
     """
     Test pipeline short-circuits when duplicate detected.
 
@@ -77,10 +79,10 @@ def test_pipeline_deduplication_skip_upload(test_db_session, sample_pdf_path, ex
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
             CallResponsesAPIStage(mock_openai_client),
-            PersistToDBStage(test_db_session),
+            PersistToDBStage(db_session),
         ]
     )
 
@@ -96,11 +98,11 @@ def test_pipeline_deduplication_skip_upload(test_db_session, sample_pdf_path, ex
     mock_openai_client.responses.create.assert_not_called()
 
     # Should NOT create new database record
-    doc_count = test_db_session.query(Document).count()
+    doc_count = db_session.query(Document).count()
     assert doc_count == 1  # Only existing_document
 
 
-def test_pipeline_partial_execution(test_db_session, sample_pdf_path):
+def test_pipeline_partial_execution(db_session, sample_pdf_path):
     """
     Test pipeline with only first two stages (hash + dedupe).
 
@@ -109,7 +111,7 @@ def test_pipeline_partial_execution(test_db_session, sample_pdf_path):
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
         ]
     )
 
@@ -126,7 +128,7 @@ def test_pipeline_partial_execution(test_db_session, sample_pdf_path):
     assert result.document_id is None
 
 
-def test_pipeline_error_propagation(test_db_session, tmp_path, mock_openai_client):
+def test_pipeline_error_propagation(db_session, tmp_path, mock_openai_client):
     """
     Test pipeline captures errors from failing stages.
 
@@ -139,7 +141,7 @@ def test_pipeline_error_propagation(test_db_session, tmp_path, mock_openai_clien
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
         ]
     )
 
@@ -154,7 +156,7 @@ def test_pipeline_error_propagation(test_db_session, tmp_path, mock_openai_clien
     assert result.failed_at_stage == "ComputeSHA256Stage"
 
 
-def test_pipeline_stage_order_matters(test_db_session, sample_pdf_path, mock_openai_client):
+def test_pipeline_stage_order_matters(db_session, sample_pdf_path, mock_openai_client):
     """
     Test stage execution order is critical.
 
@@ -164,7 +166,7 @@ def test_pipeline_stage_order_matters(test_db_session, sample_pdf_path, mock_ope
     # Incorrect order: dedupe before hash computation
     pipeline = Pipeline(
         stages=[
-            DedupeCheckStage(test_db_session),  # ← Wrong: runs before hash computed
+            DedupeCheckStage(db_session),  # ← Wrong: runs before hash computed
             ComputeSHA256Stage(),
         ]
     )
@@ -181,7 +183,7 @@ def test_pipeline_stage_order_matters(test_db_session, sample_pdf_path, mock_ope
     assert result.failed_at_stage == "DedupeCheckStage"
 
 
-def test_pipeline_with_api_error(test_db_session, sample_pdf_path):
+def test_pipeline_with_api_error(db_session, sample_pdf_path):
     """
     Test pipeline handles API errors gracefully.
 
@@ -195,7 +197,7 @@ def test_pipeline_with_api_error(test_db_session, sample_pdf_path):
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
             UploadToFilesAPIStage(failing_client),
         ]
     )
@@ -211,7 +213,7 @@ def test_pipeline_with_api_error(test_db_session, sample_pdf_path):
     assert result.failed_at_stage == "UploadToFilesAPIStage"
 
 
-def test_pipeline_database_commit_on_success(test_db_session, sample_pdf_path, mock_openai_client):
+def test_pipeline_database_commit_on_success(db_session, sample_pdf_path, mock_openai_client):
     """
     Test database transaction commits on successful pipeline execution.
 
@@ -220,10 +222,10 @@ def test_pipeline_database_commit_on_success(test_db_session, sample_pdf_path, m
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
             CallResponsesAPIStage(mock_openai_client),
-            PersistToDBStage(test_db_session),
+            PersistToDBStage(db_session),
         ]
     )
 
@@ -232,12 +234,12 @@ def test_pipeline_database_commit_on_success(test_db_session, sample_pdf_path, m
 
     # Commit should have occurred in PersistToDBStage
     # Verify document exists in database
-    doc = test_db_session.query(Document).filter_by(id=result.document_id).first()
+    doc = db_session.query(Document).filter_by(id=result.document_id).first()
     assert doc is not None
     assert doc.status == "completed"
 
 
-def test_pipeline_metrics_collection(test_db_session, sample_pdf_path, mock_openai_client):
+def test_pipeline_metrics_collection(db_session, sample_pdf_path, mock_openai_client):
     """
     Test pipeline collects metrics during execution.
 
@@ -246,7 +248,7 @@ def test_pipeline_metrics_collection(test_db_session, sample_pdf_path, mock_open
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
         ]
     )
 
@@ -311,7 +313,7 @@ def test_pipeline_single_stage():
         pdf_path.unlink()
 
 
-def test_pipeline_reuse_with_different_inputs(test_db_session, tmp_path, mock_openai_client):
+def test_pipeline_reuse_with_different_inputs(db_session, tmp_path, mock_openai_client):
     """
     Test same pipeline instance can process multiple documents.
 
@@ -320,7 +322,7 @@ def test_pipeline_reuse_with_different_inputs(test_db_session, tmp_path, mock_op
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
         ]
     )
 
@@ -344,7 +346,7 @@ def test_pipeline_reuse_with_different_inputs(test_db_session, tmp_path, mock_op
     assert result2.is_duplicate is False
 
 
-def test_full_pipeline_metadata_extraction(test_db_session, sample_pdf_path, mock_openai_client):
+def test_full_pipeline_metadata_extraction(db_session, sample_pdf_path, mock_openai_client):
     """
     Test pipeline correctly extracts and persists metadata.
 
@@ -353,10 +355,10 @@ def test_full_pipeline_metadata_extraction(test_db_session, sample_pdf_path, moc
     pipeline = Pipeline(
         stages=[
             ComputeSHA256Stage(),
-            DedupeCheckStage(test_db_session),
+            DedupeCheckStage(db_session),
             UploadToFilesAPIStage(mock_openai_client),
             CallResponsesAPIStage(mock_openai_client),
-            PersistToDBStage(test_db_session),
+            PersistToDBStage(db_session),
         ]
     )
 
@@ -373,5 +375,5 @@ def test_full_pipeline_metadata_extraction(test_db_session, sample_pdf_path, moc
     assert "summary" in result.metadata_json
 
     # Verify database has same metadata
-    doc = test_db_session.query(Document).filter_by(id=result.document_id).first()
+    doc = db_session.query(Document).filter_by(id=result.document_id).first()
     assert doc.metadata_json == result.metadata_json
