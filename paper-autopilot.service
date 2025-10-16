@@ -1,0 +1,57 @@
+[Unit]
+Description=Paper Autopilot Document Processing Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=paperautopilot
+Group=paperautopilot
+WorkingDirectory=/opt/paper_autopilot
+
+# Environment variables
+Environment="OPENAI_API_KEY=YOUR_API_KEY_HERE"
+Environment="OPENAI_MODEL=gpt-5-mini"
+Environment="PAPER_AUTOPILOT_DB_URL=postgresql://paperautopilot:password@localhost:5432/paper_autopilot"
+Environment="PAPER_AUTOPILOT_INBOX_PATH=/opt/paper_autopilot/inbox"
+Environment="ENVIRONMENT=production"
+Environment="LOG_LEVEL=INFO"
+Environment="LOG_FORMAT=json"
+Environment="API_TIMEOUT_SECONDS=300"
+Environment="MAX_RETRIES=5"
+Environment="BATCH_SIZE=10"
+
+# Or load from environment file (recommended for secrets)
+# EnvironmentFile=/etc/paper_autopilot/paper_autopilot.env
+
+# Execution (daemon mode - automatically processes PDFs as they arrive)
+ExecStart=/opt/paper_autopilot/.venv/bin/python /opt/paper_autopilot/run_daemon.py
+
+# Restart configuration
+Restart=always
+RestartSec=10
+StartLimitInterval=5min
+StartLimitBurst=3
+
+# Watchdog for health monitoring (restart if unresponsive)
+WatchdogSec=60
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/paper_autopilot/inbox /opt/paper_autopilot/processed /opt/paper_autopilot/failed /opt/paper_autopilot/logs
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=2G
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=paper-autopilot
+
+[Install]
+WantedBy=multi-user.target

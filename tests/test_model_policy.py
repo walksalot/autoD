@@ -40,6 +40,7 @@ def test_python_sources_do_not_reference_deprecated_models():
         Path("tests/unit/test_encoding.py"),
         Path("tests/unit/test_primitives.py"),
         Path("tests/unit/test_config.py"),  # Config tests may reference models in test data
+        Path("tests/unit/test_cost_calculator.py"),  # Cost calculator tests need all models for pricing tests
         Path("tests/integration"),
         Path("examples"),  # Example code may reference models for demonstration
     )

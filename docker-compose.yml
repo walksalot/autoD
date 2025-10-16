@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: paper_autopilot
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-mini}
+      - PAPER_AUTOPILOT_DB_URL=postgresql://paperautopilot:${DB_PASSWORD:-changeme}@db:5432/paper_autopilot
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - LOG_FORMAT=${LOG_FORMAT:-json}
+      - API_TIMEOUT_SECONDS=${API_TIMEOUT_SECONDS:-300}
+      - MAX_RETRIES=${MAX_RETRIES:-5}
+      - BATCH_SIZE=${BATCH_SIZE:-10}
+    volumes:
+      - ./inbox:/app/inbox
+      - ./processed:/app/processed
+      - ./failed:/app/failed
+      - ./logs:/app/logs
+      - ./.paper_autopilot_vs_id:/app/.paper_autopilot_vs_id
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - paper_autopilot_net
+
+  db:
+    image: postgres:15-alpine
+    container_name: paper_autopilot_db
+    environment:
+      - POSTGRES_USER=paperautopilot
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - POSTGRES_DB=paper_autopilot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - paper_autopilot_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperautopilot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+
+networks:
+  paper_autopilot_net:
+    driver: bridge

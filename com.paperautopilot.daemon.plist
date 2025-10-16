@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Service identification -->
+    <key>Label</key>
+    <string>com.paperautopilot.daemon</string>
+
+    <!-- Program to run -->
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Update this path to match your Python installation -->
+        <string>/Users/krisstudio/Developer/Projects/autoD/.venv/bin/python3</string>
+        <string>/Users/krisstudio/Developer/Projects/autoD/run_daemon.py</string>
+    </array>
+
+    <!-- Working directory -->
+    <key>WorkingDirectory</key>
+    <string>/Users/krisstudio/Developer/Projects/autoD</string>
+
+    <!-- Environment variables -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <!-- IMPORTANT: Set your OpenAI API key here or load from .env -->
+        <key>OPENAI_API_KEY</key>
+        <string>YOUR_API_KEY_HERE</string>
+
+        <key>OPENAI_MODEL</key>
+        <string>gpt-5-mini</string>
+
+        <key>PAPER_AUTOPILOT_INBOX_PATH</key>
+        <string>inbox</string>
+
+        <key>PAPER_AUTOPILOT_DB_URL</key>
+        <string>sqlite:///paper_autopilot.db</string>
+
+        <key>LOG_LEVEL</key>
+        <string>INFO</string>
+
+        <key>LOG_FORMAT</key>
+        <string>json</string>
+
+        <key>ENVIRONMENT</key>
+        <string>production</string>
+    </dict>
+
+    <!-- Auto-start on login -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Keep alive (restart if crashes) -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+        <key>Crashed</key>
+        <true/>
+    </dict>
+
+    <!-- Restart settings -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <!-- Logging -->
+    <key>StandardOutPath</key>
+    <string>/Users/krisstudio/Developer/Projects/autoD/logs/daemon_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/krisstudio/Developer/Projects/autoD/logs/daemon_stderr.log</string>
+
+    <!-- Process type (interactive apps only, not needed for daemon) -->
+    <key>ProcessType</key>
+    <string>Background</string>
+
+    <!-- Nice value (lower priority) -->
+    <key>Nice</key>
+    <integer>5</integer>
+
+    <!-- Resource limits -->
+    <key>SoftResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>4096</integer>
+    </dict>
+
+    <key>HardResourceLimits</key>
+    <dict>
+        <key>NumberOfFiles</key>
+        <integer>8192</integer>
+    </dict>
+</dict>
+</plist>

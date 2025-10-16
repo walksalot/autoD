@@ -230,6 +230,11 @@ class Config(BaseSettings):
         description="Deployment environment",
     )
 
+    paper_autopilot_version: str = Field(
+        default="1.0.0",
+        description="Paper Autopilot version",
+    )
+
     # === Pydantic Configuration ===
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -446,11 +446,9 @@ def build_responses_api_payload(
         "text": {
             "format": {
                 "type": "json_schema",
-                "json_schema": {
-                    "schema": get_document_extraction_schema(),
-                    "name": "document_metadata",
-                    "strict": True,
-                },
+                "name": "document_metadata",
+                "schema": get_document_extraction_schema(),
+                "strict": True,
             }
         },
     }

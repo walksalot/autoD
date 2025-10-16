@@ -49,6 +49,7 @@ class JSONFormatter(logging.Formatter):
             "total_tokens",
 
             # Cost metrics (USD)
+            "cost_usd",  # Backward compatibility (WS2)
             "input_cost_usd",
             "output_cost_usd",
             "cache_cost_usd",
