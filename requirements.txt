@@ -1,0 +1,8 @@
+openai>=1.58.1
+tiktoken>=0.8.0
+sqlalchemy>=2.0.36
+pydantic>=2.10.4
+PyPDF2>=3.0.1
+tenacity>=9.0.0
+python-dotenv>=1.0.1
+alembic>=1.13.0
