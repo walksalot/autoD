@@ -38,7 +38,44 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        # Add any extra fields
+        # Extract token/cost metrics from record attributes
+        # These fields are added via logger.info(..., extra={...})
+        token_cost_fields = [
+            # Token counts
+            "prompt_tokens",
+            "output_tokens",
+            "cached_tokens",
+            "billable_input_tokens",
+            "total_tokens",
+
+            # Cost metrics (USD)
+            "input_cost_usd",
+            "output_cost_usd",
+            "cache_cost_usd",
+            "cache_savings_usd",
+            "total_cost_usd",
+
+            # Performance metrics
+            "duration_ms",
+            "throughput_pdfs_per_hour",
+
+            # Processing context
+            "pdf_path",
+            "doc_id",
+            "sha256_hex",
+            "file_size_bytes",
+            "stage",
+            "status",
+            "is_duplicate",
+            "model",
+            "encoding",
+        ]
+
+        for field in token_cost_fields:
+            if hasattr(record, field):
+                log_data[field] = getattr(record, field)
+
+        # Add any extra fields (for extensibility)
         if hasattr(record, "extra"):
             log_data["extra"] = record.extra
 
