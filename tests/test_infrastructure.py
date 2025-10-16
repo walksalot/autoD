@@ -115,10 +115,10 @@ def test_mock_openai_basic(mock_openai_client):
     assert len(response.output) == 1
     assert response.output[0].role == "assistant"
     assert len(response.output[0].content) == 1
-    assert response.output[0].content[0]["type"] == "output_text"
+    assert response.output[0].content[0].type == "output_text"
 
     # Validate metadata JSON
-    metadata_text = response.output[0].content[0]["text"]
+    metadata_text = response.output[0].content[0].text
     metadata = json.loads(metadata_text)
     assert "doc_type" in metadata
     assert "file_name" in metadata
@@ -142,7 +142,7 @@ def test_mock_openai_doc_types(
 
     for client, expected_doc_type in clients:
         response = client.responses.create(model="gpt-5", input=[])
-        metadata_text = response.output[0].content[0]["text"]
+        metadata_text = response.output[0].content[0].text
         metadata = json.loads(metadata_text)
         assert metadata["doc_type"] == expected_doc_type
 

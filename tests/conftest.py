@@ -20,8 +20,19 @@ Example usage in tests:
         assert doc.id is not None
 """
 
-import pytest
+import os
 from pathlib import Path
+
+if "OPENAI_API_KEY" not in os.environ:
+    key_path = Path.home() / ".OPENAI_API_KEY"
+    if key_path.exists():
+        candidate = key_path.read_text(encoding="utf-8").strip()
+        if candidate:
+            os.environ["OPENAI_API_KEY"] = candidate
+    else:
+        os.environ["OPENAI_API_KEY"] = "sk-test-" + "x" * 32
+
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from typing import Generator
