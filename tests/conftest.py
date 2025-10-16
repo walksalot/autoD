@@ -80,6 +80,16 @@ def db_session() -> Generator:
     engine.dispose()
 
 
+@pytest.fixture
+def test_db_session(db_session) -> Generator:
+    """Alias for db_session fixture for backward compatibility.
+
+    Some tests from Workstream 1 use test_db_session instead of db_session.
+    This alias ensures both naming conventions work.
+    """
+    return db_session
+
+
 # ==============================================================================
 # PDF Generation Fixtures
 # ==============================================================================

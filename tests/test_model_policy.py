@@ -32,6 +32,7 @@ def test_python_sources_do_not_reference_deprecated_models():
     allowed = {
         Path("config/models.py"),  # central allow/deny list
         Path("src/config.py"),     # config module validates and rejects deprecated models
+        Path("src/token_counter.py"),  # token counter needs to support all models for accurate counting
     }
     # Token counter module needs to support all models for accurate counting
     allowed_prefixes = (
