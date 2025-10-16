@@ -120,42 +120,11 @@ class Config(BaseSettings):
         le=500,
     )
 
-    # === Token & Cost Configuration ===
-    prompt_token_price_per_million: float = Field(
-        default=0.15,
-        description="Cost per 1M input tokens (USD)",
-        ge=0.0,
-    )
-
-    completion_token_price_per_million: float = Field(
-        default=0.60,
-        description="Cost per 1M output tokens (USD)",
-        ge=0.0,
-    )
-
-    cached_token_price_per_million: float = Field(
-        default=0.075,
-        description="Cost per 1M cached input tokens (USD)",
-        ge=0.0,
-    )
-
-    # === Cost Alerts ===
-    cost_alert_threshold_1: float = Field(
-        default=10.0,
-        description="First cost alert threshold (USD)",
-        ge=0.0,
-    )
-
-    cost_alert_threshold_2: float = Field(
-        default=50.0,
-        description="Second cost alert threshold (USD)",
-        ge=0.0,
-    )
-
-    cost_alert_threshold_3: float = Field(
-        default=100.0,
-        description="Third cost alert threshold (USD)",
-        ge=0.0,
+    max_output_tokens: int = Field(
+        default=60000,
+        description="Maximum output tokens for Responses API",
+        ge=1000,
+        le=100000,
     )
 
     # === Processing Configuration ===
