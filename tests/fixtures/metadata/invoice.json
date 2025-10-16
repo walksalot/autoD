@@ -1,0 +1,8 @@
+{
+  "file_name": "acme-invoice-2024-01.pdf",
+  "doc_type": "Invoice",
+  "issuer": "Acme Corporation",
+  "primary_date": "2024-01-15",
+  "total_amount": 1250.00,
+  "summary": "Monthly software subscription invoice for January 2024 services."
+}
