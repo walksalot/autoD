@@ -9,7 +9,7 @@ import sys
 import json
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, Union
+from typing import Any, Dict
 import uuid
 
 
@@ -30,20 +30,54 @@ class JSONFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
+        # Add correlation ID if present
+        if hasattr(record, "correlation_id"):
+            log_data["correlation_id"] = record.correlation_id
+
         # Add exception info if present
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
-        # Add extra context from logger.info(..., extra={...})
-        # These fields are automatically extracted when present
-        extra_fields = [
-            "pdf_path", "sha256_hex", "doc_id", "stage",
-            "duration_ms", "cost_usd", "prompt_tokens", "output_tokens",
-            "is_duplicate", "status", "file_size_bytes", "correlation_id"
+        # Extract token/cost metrics from record attributes
+        # These fields are added via logger.info(..., extra={...})
+        token_cost_fields = [
+            # Token counts
+            "prompt_tokens",
+            "output_tokens",
+            "cached_tokens",
+            "billable_input_tokens",
+            "total_tokens",
+
+            # Cost metrics (USD)
+            "input_cost_usd",
+            "output_cost_usd",
+            "cache_cost_usd",
+            "cache_savings_usd",
+            "total_cost_usd",
+
+            # Performance metrics
+            "duration_ms",
+            "throughput_pdfs_per_hour",
+
+            # Processing context
+            "pdf_path",
+            "doc_id",
+            "sha256_hex",
+            "file_size_bytes",
+            "stage",
+            "status",
+            "is_duplicate",
+            "model",
+            "encoding",
         ]
-        for field in extra_fields:
+
+        for field in token_cost_fields:
             if hasattr(record, field):
                 log_data[field] = getattr(record, field)
+
+        # Add any extra fields (for extensibility)
+        if hasattr(record, "extra"):
+            log_data["extra"] = record.extra
 
         return json.dumps(log_data)
 
@@ -93,7 +127,6 @@ def setup_logging(
     file_handler.setLevel(getattr(logging, log_level.upper()))
 
     # Choose formatter
-    formatter: Union[JSONFormatter, logging.Formatter]
     if log_format == "json":
         formatter = JSONFormatter()
     else:
