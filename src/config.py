@@ -17,7 +17,7 @@ Usage:
     print(config.api_timeout_seconds)  # 300
 """
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
 from typing import Literal, Optional
@@ -91,6 +91,26 @@ class Config(BaseSettings):
                 "NEVER use gpt-4o or chat completions models per project requirements."
             )
         return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def load_openai_key_from_file(cls, values: dict):
+        """
+        Automatically load OPENAI_API_KEY from ~/.OPENAI_API_KEY when not set.
+
+        This keeps tests/dev environments working without forcing contributors to
+        export the variable manually, while still requiring a non-empty key.
+        """
+        key = values.get("openai_api_key")
+        if key:
+            return values
+
+        key_path = Path.home() / ".OPENAI_API_KEY"
+        if key_path.exists():
+            file_key = key_path.read_text(encoding="utf-8").strip()
+            if file_key:
+                values["openai_api_key"] = file_key
+        return values
 
     # === Database Configuration ===
     paper_autopilot_db_url: str = Field(
