@@ -24,3 +24,23 @@ path,purpose,owner,last_modified_iso
 ./docs/sessions/2025-10-16-snapshot-1.md,Project initialization snapshot,docs,2025-10-16T12:00:00
 ./docs/decisions/README.md,ADR directory guide and formatting standards,docs,2025-10-16T12:00:00
 ./docs/decisions/ADR-TEMPLATE.md,Template for creating new Architecture Decision Records,docs,2025-10-16T12:00:00
+./token_counter/__init__.py,Token counting module exports and public API,token_counter,2025-10-16T14:20:00
+./token_counter/encoding.py,Model-to-encoding resolution for tiktoken,token_counter,2025-10-16T13:01:00
+./token_counter/primitives.py,Low-level token counting primitives,token_counter,2025-10-16T13:02:00
+./token_counter/models.py,Pydantic data models for token counting,token_counter,2025-10-16T14:20:00
+./token_counter/exceptions.py,Error definitions for token counting,token_counter,2025-10-16T13:07:00
+./token_counter/responses_api.py,Responses API token calculator with file estimation,token_counter,2025-10-16T14:20:00
+./token_counter/chat_api.py,Chat Completions API token calculator,token_counter,2025-10-16T14:20:00
+./token_counter/file_estimators.py,PDF token estimation with confidence levels,token_counter,2025-10-16T13:54:00
+./token_counter/cost.py,Cost calculator with model-specific pricing,token_counter,2025-10-16T14:00:00
+./token_counter/counter.py,High-level facade API with auto-detection,token_counter,2025-10-16T14:05:00
+./token_counter/validator.py,Validation against actual API usage,token_counter,2025-10-16T14:12:00
+./config/pricing.yaml,Model-specific pricing configuration (USD per million tokens),config,2025-10-16T13:58:00
+./tests/unit/test_cost.py,Cost calculation unit tests (20 tests),tests,2025-10-16T14:01:00
+./tests/unit/test_file_estimators.py,PDF token estimation tests (24 tests),tests,2025-10-16T13:55:00
+./tests/integration/test_counter.py,TokenCounter facade integration tests (18 tests),tests,2025-10-16T14:07:00
+./tests/integration/test_validator.py,TokenValidator integration tests (9 tests),tests,2025-10-16T14:13:00
+./docs/token_counting/quickstart.md,Token counting user guide with common patterns,docs,2025-10-16T14:10:00
+./docs/token_counting/api_reference.md,Complete token counting API documentation,docs,2025-10-16T14:11:00
+./examples/token_counting_integration.py,Token counting integration examples (8 examples),examples,2025-10-16T14:09:00
+./docs/sessions/2025-10-16-token-counting.md,Token counting implementation session report,docs,2025-10-16T21:22:00

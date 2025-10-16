@@ -193,11 +193,27 @@ def mock_openai_client():
             )
             assert response.usage.prompt_tokens > 0
     """
-    from unittest.mock import Mock
+    from unittest.mock import Mock, MagicMock
 
+    # Create full client instances
+    responses_client = MockResponsesClient(default_doc_type="invoice")
+    files_client = MockFilesClient()
+
+    # Create combined mock client
     client = Mock()
-    client.responses = MockResponsesClient(default_doc_type="invoice").responses
-    client.files = MockFilesClient().files
+
+    # For responses, wrap the namespace's create method
+    client.responses = Mock()
+    client.responses.create = Mock(wraps=responses_client.responses.create)
+
+    # For files, wrap the namespace's create method
+    client.files = Mock()
+    client.files.create = Mock(wraps=files_client.files.create)
+
+    # Also attach the real namespace objects for direct access if needed
+    client._responses_client = responses_client
+    client._files_client = files_client
+
     return client
 
 
