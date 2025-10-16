@@ -1,0 +1,210 @@
+# OpenAI and Anthropic Model Pricing Configuration
+# All prices in USD per million tokens
+# Last updated: January 2025
+
+# Default pricing for unknown models
+defaults:
+  input_per_million: 2.50
+  output_per_million: 10.00
+  cached_input_per_million: 1.25  # 50% discount for prompt caching
+  cached_discount_factor: 0.5
+
+# Model-specific pricing
+models:
+  # === OpenAI GPT-5 Series (Frontier Models) ===
+
+  gpt-5:
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "OpenAI's flagship model for coding and agentic tasks"
+
+  gpt-5-mini:
+    input_per_million: 0.40
+    output_per_million: 1.60
+    cached_input_per_million: 0.20
+    description: "Faster, cost-efficient version of GPT-5"
+
+  gpt-5-nano:
+    input_per_million: 0.10
+    output_per_million: 0.40
+    cached_input_per_million: 0.05
+    description: "Fastest, most cost-efficient version of GPT-5"
+
+  gpt-5-pro:
+    input_per_million: 10.00
+    output_per_million: 40.00
+    cached_input_per_million: 5.00
+    description: "GPT-5 with enhanced reasoning capabilities"
+
+  # === OpenAI GPT-4.1 ===
+
+  gpt-4.1:
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "Smartest non-reasoning model"
+
+  # === OpenAI GPT-4o Series ===
+
+  gpt-4o:
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "Multimodal flagship model (May 2024)"
+
+  gpt-4o-mini:
+    input_per_million: 0.15
+    output_per_million: 0.60
+    cached_input_per_million: 0.075
+    description: "Affordable small model for fast tasks"
+
+  gpt-4o-2024-05-13:
+    input_per_million: 5.00
+    output_per_million: 15.00
+    cached_input_per_million: 2.50
+    description: "GPT-4o snapshot (May 13, 2024)"
+
+  gpt-4o-2024-08-06:
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "GPT-4o snapshot (Aug 6, 2024) with Structured Outputs"
+
+  # === OpenAI GPT-4 Series (Legacy) ===
+
+  gpt-4:
+    input_per_million: 30.00
+    output_per_million: 60.00
+    cached_input_per_million: 15.00
+    description: "Legacy GPT-4 base model"
+    deprecated: true
+
+  gpt-4-turbo:
+    input_per_million: 10.00
+    output_per_million: 30.00
+    cached_input_per_million: 5.00
+    description: "Legacy GPT-4 Turbo"
+    deprecated: true
+
+  gpt-4-turbo-preview:
+    input_per_million: 10.00
+    output_per_million: 30.00
+    cached_input_per_million: 5.00
+    description: "Legacy GPT-4 Turbo Preview"
+    deprecated: true
+
+  gpt-4-0125-preview:
+    input_per_million: 10.00
+    output_per_million: 30.00
+    cached_input_per_million: 5.00
+    description: "Legacy GPT-4 Turbo snapshot (Jan 25, 2024)"
+    deprecated: true
+
+  gpt-4-1106-preview:
+    input_per_million: 10.00
+    output_per_million: 30.00
+    cached_input_per_million: 5.00
+    description: "Legacy GPT-4 Turbo snapshot (Nov 6, 2023)"
+    deprecated: true
+
+  # === OpenAI GPT-3.5 Series (Legacy) ===
+
+  gpt-3.5-turbo:
+    input_per_million: 0.50
+    output_per_million: 1.50
+    cached_input_per_million: 0.25
+    description: "Legacy GPT-3.5 Turbo"
+    deprecated: true
+
+  gpt-3.5-turbo-0125:
+    input_per_million: 0.50
+    output_per_million: 1.50
+    cached_input_per_million: 0.25
+    description: "Legacy GPT-3.5 Turbo snapshot (Jan 25, 2024)"
+    deprecated: true
+
+  gpt-3.5-turbo-1106:
+    input_per_million: 1.00
+    output_per_million: 2.00
+    cached_input_per_million: 0.50
+    description: "Legacy GPT-3.5 Turbo snapshot (Nov 6, 2023)"
+    deprecated: true
+
+  # === Anthropic Claude Series ===
+
+  claude-4.5-sonnet:
+    input_per_million: 3.00
+    output_per_million: 15.00
+    cached_input_per_million: 1.50
+    description: "Anthropic's flagship Sonnet model"
+
+  claude-sonnet-4.5:
+    input_per_million: 3.00
+    output_per_million: 15.00
+    cached_input_per_million: 1.50
+    description: "Anthropic's flagship Sonnet model (alternate naming)"
+
+  claude-4.5-haiku:
+    input_per_million: 0.25
+    output_per_million: 1.25
+    cached_input_per_million: 0.125
+    description: "Anthropic's fast, cost-efficient Haiku model"
+
+  claude-haiku-4.5:
+    input_per_million: 0.25
+    output_per_million: 1.25
+    cached_input_per_million: 0.125
+    description: "Anthropic's fast, cost-efficient Haiku model (alternate naming)"
+
+# Pattern-based pricing fallbacks
+# Used when exact model match not found
+pattern_matches:
+  - pattern: "^gpt-5"
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "GPT-5 family fallback"
+
+  - pattern: "^gpt-4o"
+    input_per_million: 2.50
+    output_per_million: 10.00
+    cached_input_per_million: 1.25
+    description: "GPT-4o family fallback"
+
+  - pattern: "^gpt-4"
+    input_per_million: 30.00
+    output_per_million: 60.00
+    cached_input_per_million: 15.00
+    description: "GPT-4 family fallback"
+    deprecated: true
+
+  - pattern: "^gpt-3.5"
+    input_per_million: 0.50
+    output_per_million: 1.50
+    cached_input_per_million: 0.25
+    description: "GPT-3.5 family fallback"
+    deprecated: true
+
+  - pattern: "^claude.*sonnet"
+    input_per_million: 3.00
+    output_per_million: 15.00
+    cached_input_per_million: 1.50
+    description: "Claude Sonnet family fallback"
+
+  - pattern: "^claude.*haiku"
+    input_per_million: 0.25
+    output_per_million: 1.25
+    cached_input_per_million: 0.125
+    description: "Claude Haiku family fallback"
+
+# Cached input pricing notes:
+# - OpenAI: 50% discount for cached prompts
+# - Anthropic: 90% discount for cached prompts (not yet implemented)
+# - Default: 50% discount
+
+# Pricing update policy:
+# - Check OpenAI pricing page: https://openai.com/api/pricing/
+# - Check Anthropic pricing page: https://www.anthropic.com/pricing
+# - Update this file when pricing changes
+# - Run tests after updates to verify calculations
