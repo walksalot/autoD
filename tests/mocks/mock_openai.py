@@ -80,6 +80,15 @@ class MockResponse:
             ]
         }
 
+    def model_dump(self) -> Dict[str, Any]:
+        """Pydantic-compatible serialization method.
+
+        CallResponsesAPIStage calls response.model_dump() to serialize
+        the response to JSON. This method provides compatibility with
+        Pydantic models used by the real OpenAI SDK.
+        """
+        return self.to_dict()
+
 
 def load_metadata_fixture(doc_type: str) -> Dict[str, Any]:
     """Load metadata fixture from JSON file.
