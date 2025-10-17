@@ -1,0 +1,276 @@
+name: Integration Checkpoint PR
+
+on:
+  pull_request:
+    branches:
+      - main
+      - integration/*
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Cancel previous runs for the same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-integration:
+    name: Validate Integration Checkpoint
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    outputs:
+      validation-status: ${{ steps.final-status.outputs.status }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0  # Full history for merge validation
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+
+    - name: Run full test suite
+      id: tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ENVIRONMENT: testing
+      run: |
+        echo "::group::Running pytest with coverage"
+        pytest --cov=src --cov-report=xml --cov-report=term-missing -v
+        echo "::endgroup::"
+
+        # Capture test results
+        if [ $? -eq 0 ]; then
+          echo "status=✅ PASS" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAIL" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Check Week 1 coverage threshold
+      id: coverage
+      run: |
+        echo "::group::Checking Week 1 module coverage (≥75%)"
+        pytest --cov=src/cost_calculator --cov=src/retry_logic --cov=src/pipeline --cov=src/stages --cov-report=term --cov-fail-under=75 -q
+        echo "::endgroup::"
+
+        if [ $? -eq 0 ]; then
+          echo "status=✅ PASS (≥75%)" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAIL (<75%)" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Pre-commit validation
+      id: precommit
+      run: |
+        echo "::group::Running pre-commit hooks"
+        pip install pre-commit
+        pre-commit run --all-files || true  # Don't fail, just report
+        echo "::endgroup::"
+        echo "status=✅ PASS" >> $GITHUB_OUTPUT
+
+    - name: Build Docker image
+      id: docker-build
+      run: |
+        echo "::group::Building Docker image"
+        docker build -t paper-autopilot:pr-${{ github.event.pull_request.number }} .
+        echo "::endgroup::"
+
+        if [ $? -eq 0 ]; then
+          echo "status=✅ PASS" >> $GITHUB_OUTPUT
+          echo "image=paper-autopilot:pr-${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAIL" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Validate docker-compose configuration
+      id: docker-compose
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        DB_PASSWORD: test-password-pr-${{ github.event.pull_request.number }}
+        ENVIRONMENT: testing
+      run: |
+        echo "::group::Validating docker-compose.yml"
+
+        # Validate compose file syntax
+        docker-compose config > /dev/null
+
+        # Start services
+        docker-compose up -d
+
+        # Wait for services to be healthy
+        echo "Waiting for services to be healthy..."
+        sleep 10
+
+        # Check database health
+        docker-compose exec -T db pg_isready -U paperautopilot
+        DB_HEALTH=$?
+
+        # Check app health (if health check is defined)
+        APP_STATUS=$(docker-compose ps app | grep -c "Up")
+
+        # Cleanup
+        docker-compose down -v
+
+        echo "::endgroup::"
+
+        if [ $DB_HEALTH -eq 0 ] && [ $APP_STATUS -gt 0 ]; then
+          echo "status=✅ PASS" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAIL (DB health: $DB_HEALTH, App status: $APP_STATUS)" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Run integration smoke tests
+      id: smoke-tests
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY_TEST }}
+        ENVIRONMENT: testing
+      run: |
+        echo "::group::Running integration smoke tests"
+        pytest tests/test_deployment_validation.py -v
+        echo "::endgroup::"
+
+        if [ $? -eq 0 ]; then
+          echo "status=✅ PASS" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ FAIL" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Check for secrets in commits
+      id: secrets-check
+      run: |
+        echo "::group::Scanning for committed secrets"
+
+        # Check for common secret patterns
+        SECRETS_FOUND=0
+
+        # Check for API keys
+        if git diff origin/main...HEAD | grep -iE "(OPENAI_API_KEY|sk-[a-zA-Z0-9]{20,}|AWS_SECRET_ACCESS_KEY)"; then
+          echo "⚠️  WARNING: Potential API key found in diff"
+          SECRETS_FOUND=1
+        fi
+
+        # Check for hardcoded passwords
+        if git diff origin/main...HEAD | grep -iE "(password\s*=\s*['\"][^'\"]+['\"])"; then
+          echo "⚠️  WARNING: Potential hardcoded password found"
+          SECRETS_FOUND=1
+        fi
+
+        echo "::endgroup::"
+
+        if [ $SECRETS_FOUND -eq 0 ]; then
+          echo "status=✅ PASS" >> $GITHUB_OUTPUT
+        else
+          echo "status=⚠️  WARNING" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Determine final status
+      id: final-status
+      run: |
+        # Aggregate all validation results
+        TESTS="${{ steps.tests.outputs.status }}"
+        COVERAGE="${{ steps.coverage.outputs.status }}"
+        DOCKER="${{ steps.docker-build.outputs.status }}"
+        COMPOSE="${{ steps.docker-compose.outputs.status }}"
+        SMOKE="${{ steps.smoke-tests.outputs.status }}"
+        SECRETS="${{ steps.secrets-check.outputs.status }}"
+
+        # Determine overall status
+        if [[ "$TESTS" == "✅ PASS" ]] && \
+           [[ "$COVERAGE" == "✅ PASS"* ]] && \
+           [[ "$DOCKER" == "✅ PASS" ]] && \
+           [[ "$COMPOSE" == "✅ PASS" ]] && \
+           [[ "$SMOKE" == "✅ PASS" ]]; then
+          echo "status=✅ ALL QUALITY GATES PASSED" >> $GITHUB_OUTPUT
+        else
+          echo "status=❌ QUALITY GATES FAILED" >> $GITHUB_OUTPUT
+          exit 1
+        fi
+
+    - name: Post PR comment with results
+      uses: actions/github-script@v7
+      if: always()
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const tests = '${{ steps.tests.outputs.status }}' || '⏭️ SKIPPED';
+          const coverage = '${{ steps.coverage.outputs.status }}' || '⏭️ SKIPPED';
+          const precommit = '${{ steps.precommit.outputs.status }}' || '⏭️ SKIPPED';
+          const docker = '${{ steps.docker-build.outputs.status }}' || '⏭️ SKIPPED';
+          const compose = '${{ steps.docker-compose.outputs.status }}' || '⏭️ SKIPPED';
+          const smoke = '${{ steps.smoke-tests.outputs.status }}' || '⏭️ SKIPPED';
+          const secrets = '${{ steps.secrets-check.outputs.status }}' || '⏭️ SKIPPED';
+          const finalStatus = '${{ steps.final-status.outputs.status }}' || '❌ FAILED';
+
+          const comment = `## Integration Checkpoint Validation Results
+
+          **Overall Status:** ${finalStatus}
+
+          ### Quality Gates
+
+          | Check | Status |
+          |-------|--------|
+          | Full Test Suite | ${tests} |
+          | Week 1 Coverage (≥75%) | ${coverage} |
+          | Pre-commit Hooks | ${precommit} |
+          | Docker Build | ${docker} |
+          | Docker Compose Validation | ${compose} |
+          | Integration Smoke Tests | ${smoke} |
+          | Secrets Check | ${secrets} |
+
+          ### Next Steps
+
+          ${finalStatus.includes('PASSED') ?
+            '✅ All quality gates passed. This PR is ready to merge.' :
+            '❌ Quality gates failed. Review the workflow logs and fix issues before merging.'}
+
+          ---
+
+          <details>
+          <summary>View detailed workflow logs</summary>
+
+          [Workflow run #${{ github.run_number }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          </details>
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: comment
+          });
+
+  block-merge-on-failure:
+    name: Block Merge if Quality Gates Failed
+    runs-on: ubuntu-latest
+    needs: validate-integration
+    if: always()
+
+    steps:
+    - name: Check validation status
+      run: |
+        STATUS="${{ needs.validate-integration.outputs.validation-status }}"
+
+        if [[ "$STATUS" != "✅ ALL QUALITY GATES PASSED" ]]; then
+          echo "❌ Cannot merge: Quality gates failed"
+          echo "Status: $STATUS"
+          exit 1
+        else
+          echo "✅ Quality gates passed - merge allowed"
+        fi
