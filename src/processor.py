@@ -214,6 +214,7 @@ def process_document(
                 sha256_base64=b64_hash,
                 original_filename=file_path.name,
                 file_size_bytes=file_size,
+                page_count=metadata.get("page_count"),  # Extract from API response
                 source_file_id=None,  # Will be set when uploaded to vector store
                 metadata_json=enriched_metadata,  # All extracted data in JSON blob
                 status="completed",
