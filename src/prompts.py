@@ -242,11 +242,9 @@ def build_responses_api_payload(
         "text": {
             "format": {
                 "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "schema": schema_to_use,
-                    "strict": True,
-                },
+                "name": schema_name,
+                "schema": schema_to_use,
+                "strict": True,
             }
         },
     }

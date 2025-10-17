@@ -87,45 +87,68 @@ def _base_schema() -> Dict[str, Any]:
                 "minLength": 1,
             },
             # Titles & summaries
-            "title": {"type": ["string", "null"], "maxLength": 512},
-            "brief_description": {"type": ["string", "null"], "maxLength": 512},
-            "long_description": {"type": ["string", "null"], "maxLength": 2048},
-            "summary": {"type": ["string", "null"], "maxLength": 1500},
-            "summary_long": {"type": ["string", "null"], "maxLength": 4096},
-            "email_subject": {"type": ["string", "null"], "maxLength": 512},
-            "email_preview_text": {"type": ["string", "null"], "maxLength": 160},
-            "email_body_markdown": {"type": ["string", "null"], "maxLength": 10000},
+            "title": {
+                "anyOf": [{"type": "string", "maxLength": 512}, {"type": "null"}]
+            },
+            "brief_description": {
+                "anyOf": [{"type": "string", "maxLength": 512}, {"type": "null"}]
+            },
+            "long_description": {
+                "anyOf": [{"type": "string", "maxLength": 2048}, {"type": "null"}]
+            },
+            "summary": {
+                "anyOf": [{"type": "string", "maxLength": 1500}, {"type": "null"}]
+            },
+            "summary_long": {
+                "anyOf": [{"type": "string", "maxLength": 4096}, {"type": "null"}]
+            },
+            "email_subject": {
+                "anyOf": [{"type": "string", "maxLength": 512}, {"type": "null"}]
+            },
+            "email_preview_text": {
+                "anyOf": [{"type": "string", "maxLength": 160}, {"type": "null"}]
+            },
+            "email_body_markdown": {
+                "anyOf": [{"type": "string", "maxLength": 10000}, {"type": "null"}]
+            },
             # Classification
             "category": {
                 "type": "string",
                 "enum": _CATEGORIES,
             },
             "subcategory": {
-                "type": ["string", "null"],
-                "enum": _SUBCATEGORIES + [None],
+                "anyOf": [{"type": "string", "enum": _SUBCATEGORIES}, {"type": "null"}]
             },
             "doc_type": {
-                "type": ["string", "null"],
-                "maxLength": 256,
+                "anyOf": [{"type": "string", "maxLength": 256}, {"type": "null"}]
             },
             "confidence_score": {
-                "type": ["number", "null"],
-                "minimum": 0.0,
-                "maximum": 1.0,
+                "anyOf": [
+                    {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    {"type": "null"},
+                ]
             },
             # Parties & dates
-            "issuer": {"type": ["string", "null"], "maxLength": 512},
+            "issuer": {
+                "anyOf": [{"type": "string", "maxLength": 512}, {"type": "null"}]
+            },
             "primary_date": {
-                "type": ["string", "null"],
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "anyOf": [
+                    {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                    {"type": "null"},
+                ]
             },
             "period_start_date": {
-                "type": ["string", "null"],
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "anyOf": [
+                    {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                    {"type": "null"},
+                ]
             },
             "period_end_date": {
-                "type": ["string", "null"],
-                "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                "anyOf": [
+                    {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                    {"type": "null"},
+                ]
             },
             # Actionability
             "key_points": {
@@ -140,74 +163,192 @@ def _base_schema() -> Dict[str, Any]:
                     "properties": {
                         "description": {"type": "string", "maxLength": 512},
                         "assignee_suggestion": {
-                            "type": ["string", "null"],
-                            "maxLength": 256,
+                            "anyOf": [
+                                {"type": "string", "maxLength": 256},
+                                {"type": "null"},
+                            ]
                         },
-                        "due": {"type": ["string", "null"], "maxLength": 128},
+                        "due": {
+                            "anyOf": [
+                                {"type": "string", "maxLength": 128},
+                                {"type": "null"},
+                            ]
+                        },
                         "priority": {
-                            "type": ["string", "null"],
-                            "enum": ["low", "medium", "high", "critical", None],
+                            "anyOf": [
+                                {
+                                    "type": "string",
+                                    "enum": ["low", "medium", "high", "critical"],
+                                },
+                                {"type": "null"},
+                            ]
                         },
-                        "blocking": {"type": ["boolean", "null"]},
-                        "rationale": {"type": ["string", "null"], "maxLength": 1024},
+                        "blocking": {"anyOf": [{"type": "boolean"}, {"type": "null"}]},
+                        "rationale": {
+                            "anyOf": [
+                                {"type": "string", "maxLength": 1024},
+                                {"type": "null"},
+                            ]
+                        },
                     },
-                    "required": ["description"],
+                    "required": [
+                        "description",
+                        "assignee_suggestion",
+                        "due",
+                        "priority",
+                        "blocking",
+                        "rationale",
+                    ],
                 },
             },
-            "deadline": {"type": ["string", "null"], "maxLength": 128},
+            "deadline": {
+                "anyOf": [{"type": "string", "maxLength": 128}, {"type": "null"}]
+            },
             "deadline_source": {
-                "type": ["string", "null"],
-                "enum": [
-                    "explicit_due_date",
-                    "implied_in_text",
-                    "inferred_from_context",
-                    "none",
-                    None,
-                ],
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "enum": [
+                            "explicit_due_date",
+                            "implied_in_text",
+                            "inferred_from_context",
+                            "none",
+                        ],
+                    },
+                    {"type": "null"},
+                ]
             },
             "urgency_score": {
-                "type": ["integer", "null"],
-                "minimum": 0,
-                "maximum": 100,
+                "anyOf": [
+                    {"type": "integer", "minimum": 0, "maximum": 100},
+                    {"type": "null"},
+                ]
             },
-            "urgency_reason": {"type": ["string", "null"], "maxLength": 1024},
+            "urgency_reason": {
+                "anyOf": [{"type": "string", "maxLength": 1024}, {"type": "null"}]
+            },
             # Extracted fields
             "extracted_fields": {
                 "type": "object",
-                "additionalProperties": True,
+                "additionalProperties": False,
                 "properties": {
-                    "amount_due": {"type": ["number", "null"]},
+                    "amount_due": {"anyOf": [{"type": "number"}, {"type": "null"}]},
                     "due_date": {
-                        "type": ["string", "null"],
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "anyOf": [
+                            {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                            {"type": "null"},
+                        ]
                     },
-                    "account_number": {"type": ["string", "null"], "maxLength": 256},
-                    "invoice_number": {"type": ["string", "null"], "maxLength": 256},
+                    "account_number": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "invoice_number": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
                     "statement_date": {
-                        "type": ["string", "null"],
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "anyOf": [
+                            {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                            {"type": "null"},
+                        ]
                     },
                     "period_start_date": {
-                        "type": ["string", "null"],
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "anyOf": [
+                            {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                            {"type": "null"},
+                        ]
                     },
                     "period_end_date": {
-                        "type": ["string", "null"],
-                        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+                        "anyOf": [
+                            {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$"},
+                            {"type": "null"},
+                        ]
                     },
-                    "balance": {"type": ["number", "null"]},
-                    "currency": {"type": ["string", "null"], "maxLength": 3},
-                    "policy_number": {"type": ["string", "null"], "maxLength": 256},
-                    "claim_number": {"type": ["string", "null"], "maxLength": 256},
-                    "loan_number": {"type": ["string", "null"], "maxLength": 256},
-                    "service_address": {"type": ["string", "null"], "maxLength": 512},
-                    "property_address": {"type": ["string", "null"], "maxLength": 512},
-                    "tax_id": {"type": ["string", "null"], "maxLength": 64},
-                    "customer_name": {"type": ["string", "null"], "maxLength": 256},
-                    "email": {"type": ["string", "null"], "maxLength": 256},
-                    "phone": {"type": ["string", "null"], "maxLength": 64},
-                    "meter_readings": {"type": ["string", "null"], "maxLength": 512},
+                    "balance": {"anyOf": [{"type": "number"}, {"type": "null"}]},
+                    "currency": {
+                        "anyOf": [{"type": "string", "maxLength": 3}, {"type": "null"}]
+                    },
+                    "policy_number": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "claim_number": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "loan_number": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "service_address": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 512},
+                            {"type": "null"},
+                        ]
+                    },
+                    "property_address": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 512},
+                            {"type": "null"},
+                        ]
+                    },
+                    "tax_id": {
+                        "anyOf": [{"type": "string", "maxLength": 64}, {"type": "null"}]
+                    },
+                    "customer_name": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "email": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
+                    "phone": {
+                        "anyOf": [{"type": "string", "maxLength": 64}, {"type": "null"}]
+                    },
+                    "meter_readings": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 512},
+                            {"type": "null"},
+                        ]
+                    },
                 },
+                "required": [
+                    "amount_due",
+                    "due_date",
+                    "account_number",
+                    "invoice_number",
+                    "statement_date",
+                    "period_start_date",
+                    "period_end_date",
+                    "balance",
+                    "currency",
+                    "policy_number",
+                    "claim_number",
+                    "loan_number",
+                    "service_address",
+                    "property_address",
+                    "tax_id",
+                    "customer_name",
+                    "email",
+                    "phone",
+                    "meter_readings",
+                ],
             },
             # Filing + organization
             "suggested_file_name": {
@@ -217,25 +358,36 @@ def _base_schema() -> Dict[str, Any]:
                 "maxLength": 150,
             },
             "suggested_relative_path": {
-                "type": ["string", "null"],
-                "description": "Recommended relative path for archival.",
-                "maxLength": 1024,
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "maxLength": 1024,
+                        "description": "Recommended relative path for archival.",
+                    },
+                    {"type": "null"},
+                ]
             },
             "tags": {
                 "type": "array",
                 "items": {"type": "string", "maxLength": 64},
             },
             "language": {
-                "type": ["string", "null"],
-                "description": "ISO 639-1 language code.",
-                "pattern": "^[a-z]{2}$",
+                "anyOf": [
+                    {
+                        "type": "string",
+                        "pattern": "^[a-z]{2}$",
+                        "description": "ISO 639-1 language code.",
+                    },
+                    {"type": "null"},
+                ]
             },
             "page_count": {
-                "type": ["integer", "null"],
-                "minimum": 1,
+                "anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]
             },
             # OCR & visual
-            "ocr_text_excerpt": {"type": ["string", "null"], "maxLength": 40000},
+            "ocr_text_excerpt": {
+                "anyOf": [{"type": "string", "maxLength": 40000}, {"type": "null"}]
+            },
             "ocr_page_summaries": {
                 "type": "array",
                 "items": {
@@ -250,7 +402,9 @@ def _base_schema() -> Dict[str, Any]:
                 },
             },
             # Dedupe / normalization
-            "content_signature": {"type": ["string", "null"], "maxLength": 8192},
+            "content_signature": {
+                "anyOf": [{"type": "string", "maxLength": 8192}, {"type": "null"}]
+            },
             "cross_doc_matches": {
                 "type": "array",
                 "items": {
@@ -258,48 +412,116 @@ def _base_schema() -> Dict[str, Any]:
                     "additionalProperties": False,
                     "properties": {
                         "vector_store_id": {
-                            "type": ["string", "null"],
-                            "maxLength": 64,
+                            "anyOf": [
+                                {"type": "string", "maxLength": 64},
+                                {"type": "null"},
+                            ]
                         },
-                        "file_id": {"type": ["string", "null"], "maxLength": 64},
-                        "filename": {"type": ["string", "null"], "maxLength": 255},
+                        "file_id": {
+                            "anyOf": [
+                                {"type": "string", "maxLength": 64},
+                                {"type": "null"},
+                            ]
+                        },
+                        "filename": {
+                            "anyOf": [
+                                {"type": "string", "maxLength": 255},
+                                {"type": "null"},
+                            ]
+                        },
                         "score": {
-                            "type": ["number", "null"],
-                            "minimum": 0.0,
-                            "maximum": 1.0,
+                            "anyOf": [
+                                {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                                {"type": "null"},
+                            ]
                         },
-                        "rationale": {"type": ["string", "null"], "maxLength": 1024},
+                        "rationale": {
+                            "anyOf": [
+                                {"type": "string", "maxLength": 1024},
+                                {"type": "null"},
+                            ]
+                        },
                     },
-                    "required": ["score"],
+                    "required": [
+                        "vector_store_id",
+                        "file_id",
+                        "filename",
+                        "score",
+                        "rationale",
+                    ],
                 },
             },
             "normalization": {
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "canonical_issuer": {"type": ["string", "null"], "maxLength": 256},
+                    "canonical_issuer": {
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
+                    },
                     "canonical_account_label": {
-                        "type": ["string", "null"],
-                        "maxLength": 256,
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
                     },
                     "property_identifier": {
-                        "type": ["string", "null"],
-                        "maxLength": 256,
+                        "anyOf": [
+                            {"type": "string", "maxLength": 256},
+                            {"type": "null"},
+                        ]
                     },
                 },
+                "required": [
+                    "canonical_issuer",
+                    "canonical_account_label",
+                    "property_identifier",
+                ],
             },
             # Diagnostics
             "errors": {"type": "array", "items": {"type": "string", "maxLength": 512}},
         },
         "required": [
-            "schema_version",
-            "processed_date",
-            "original_file_name",
-            "source_file_id",
+            "action_items",
+            "brief_description",
             "category",
+            "confidence_score",
+            "content_signature",
+            "cross_doc_matches",
+            "deadline",
+            "deadline_source",
             "doc_type",
-            "summary",
+            "email_body_markdown",
+            "email_preview_text",
+            "email_subject",
+            "errors",
+            "extracted_fields",
+            "issuer",
+            "key_points",
+            "language",
+            "long_description",
+            "normalization",
+            "ocr_page_summaries",
+            "ocr_text_excerpt",
+            "original_file_name",
+            "page_count",
+            "period_end_date",
+            "period_start_date",
+            "primary_date",
+            "processed_date",
+            "schema_version",
+            "source_file_id",
+            "subcategory",
             "suggested_file_name",
+            "suggested_relative_path",
+            "summary",
+            "summary_long",
+            "tags",
+            "title",
+            "urgency_reason",
+            "urgency_score",
         ],
     }
 

@@ -40,6 +40,12 @@ class ResponsesClientStub:
 
     def __init__(self, mock_client):
         self._mock = mock_client
+        # Expose responses namespace for client.responses.create() calls
+        self.responses = (
+            mock_client.responses
+            if hasattr(mock_client, "responses")
+            else mock_client._responses_client.responses
+        )
 
     def post(self, path: str, cast_to=dict, body=None):
         if path != "/v1/responses":

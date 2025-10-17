@@ -148,7 +148,7 @@ class ResponsesAPIClient:
     def _call_responses_api_with_retry(
         self,
         payload: Dict[str, Any],
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """
         Call Responses API with automatic retry.
 
@@ -165,27 +165,23 @@ class ResponsesAPIClient:
             payload: Complete API request payload
 
         Returns:
-            API response as dict
+            API response object from OpenAI SDK
 
         Raises:
             Exception: If all retries exhausted or non-retryable error
         """
         logger.info(f"Calling Responses API (model: {payload.get('model')})")
 
-        try:
-            response = self.client.post(
-                "/v1/responses",
-                cast_to=dict,
-                body=payload,
-            )
-            logger.info("API call successful (OpenAI SDK)")
-            return response
-        except APIConnectionError as err:
-            logger.warning(
-                "OpenAI SDK connection error, retrying with requests session: %s",
-                err,
-            )
-            return self._post_with_requests(payload)
+        # Use the proper SDK method for Responses API
+        response = self.client.responses.create(**payload)
+        logger.info("API call successful")
+
+        # Convert response object to dict for backwards compatibility with extract methods
+        return (
+            response.model_dump()
+            if hasattr(response, "model_dump")
+            else response.dict()
+        )
 
     def _post_with_requests(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
