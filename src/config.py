@@ -246,6 +246,105 @@ class Config(BaseSettings):
         description="Cache file for vector store ID",
     )
 
+    vector_store_upload_timeout: int = Field(
+        default=300,
+        description="Timeout for file upload processing (seconds)",
+        ge=60,
+        le=600,
+    )
+
+    vector_store_max_concurrent_uploads: int = Field(
+        default=5,
+        description="Maximum concurrent file uploads to vector store",
+        ge=1,
+        le=20,
+    )
+
+    # === Embedding Configuration ===
+    embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="OpenAI embedding model (text-embedding-3-small, text-embedding-3-large)",
+    )
+
+    @field_validator("embedding_model")
+    @classmethod
+    def validate_embedding_model(cls, v: str) -> str:
+        """Validate embedding model is supported."""
+        allowed = {
+            "text-embedding-3-small",
+            "text-embedding-3-large",
+            "text-embedding-ada-002",
+        }
+        if v not in allowed:
+            raise ValueError(
+                f"Embedding model '{v}' not supported. "
+                f"Must be one of: {', '.join(sorted(allowed))}"
+            )
+        return v
+
+    embedding_dimension: int = Field(
+        default=1536,
+        description="Embedding vector dimension (512, 1536, or 3072 for text-embedding-3)",
+        ge=512,
+        le=3072,
+    )
+
+    embedding_batch_size: int = Field(
+        default=100,
+        description="Batch size for embedding generation (max 100 per OpenAI API)",
+        ge=1,
+        le=100,
+    )
+
+    # === Semantic Search Configuration ===
+    search_default_top_k: int = Field(
+        default=5,
+        description="Default number of results for semantic search",
+        ge=1,
+        le=50,
+    )
+
+    search_max_top_k: int = Field(
+        default=20,
+        description="Maximum allowed top_k for search queries",
+        ge=1,
+        le=100,
+    )
+
+    search_relevance_threshold: float = Field(
+        default=0.7,
+        description="Minimum cosine similarity score for search results",
+        ge=0.0,
+        le=1.0,
+    )
+
+    # === Vector Cache Configuration ===
+    vector_cache_enabled: bool = Field(
+        default=True,
+        description="Enable embedding vector caching in database",
+    )
+
+    vector_cache_ttl_days: int = Field(
+        default=7,
+        description="Time-to-live for cached embeddings (days)",
+        ge=1,
+        le=365,
+    )
+
+    vector_cache_max_size_mb: int = Field(
+        default=1024,
+        description="Maximum cache size in megabytes",
+        ge=100,
+        le=10240,
+    )
+
+    vector_cache_hit_rate_target: float = Field(
+        default=0.8,
+        description="Target cache hit rate (0.8 = 80%)",
+        ge=0.5,
+        le=1.0,
+    )
+
     # === File Management ===
     processed_retention_days: int = Field(
         default=30,
