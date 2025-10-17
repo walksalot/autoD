@@ -6,18 +6,12 @@ Implements exponential backoff and error handling for production use.
 from typing import Dict, Any, Optional
 import time
 import json
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
-from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError
+from openai import OpenAI, APIConnectionError
 import logging
 import requests
 
 from src.config import get_config
+from src.retry_logic import retry
 
 
 logger = logging.getLogger("paper_autopilot")
@@ -133,18 +127,7 @@ class ResponsesAPIClient:
         )
         self._api_url = "https://api.openai.com/v1/responses"
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        stop=stop_after_attempt(5),
-        retry=retry_if_exception_type(
-            (
-                RateLimitError,
-                APIConnectionError,
-                APITimeoutError,
-            )
-        ),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
+    @retry(max_attempts=5, initial_wait=2.0, max_wait=60.0)
     def _call_responses_api_with_retry(
         self,
         payload: Dict[str, Any],
