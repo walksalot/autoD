@@ -103,6 +103,7 @@ class PersistToDBStage(ProcessingStage):
             sha256_base64=context.sha256_base64,
             original_filename=context.pdf_path.name,
             file_size_bytes=context.metrics.get("file_size_bytes"),
+            page_count=metadata.get("page_count"),
             created_at=datetime.now(timezone.utc),
             processed_at=processed_dt,
             source_file_id=context.source_file_id or context.file_id,
