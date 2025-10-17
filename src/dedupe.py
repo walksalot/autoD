@@ -74,14 +74,7 @@ def check_duplicate(session: Session, sha256_hex: str) -> Optional[Document]:
         ...     if duplicate:
         ...         print(f"Duplicate: {duplicate.original_filename}")
     """
-    return (
-        session.query(Document)
-        .filter(
-            Document.sha256_hex == sha256_hex,
-            Document.deleted_at.is_(None),  # Exclude soft-deleted documents
-        )
-        .first()
-    )
+    return session.query(Document).filter(Document.sha256_hex == sha256_hex).first()
 
 
 def build_vector_store_attributes(
