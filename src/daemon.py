@@ -14,6 +14,7 @@ import time
 import threading
 from pathlib import Path
 from queue import Queue, Empty
+import logging
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -26,11 +27,22 @@ from src.api_client import ResponsesAPIClient
 from src.vector_store import VectorStoreManager
 
 
-logger = setup_logging(
-    log_level=get_config().log_level,
-    log_format=get_config().log_format,
-    log_file=str(get_config().log_file),
-)
+# Use basic logger at module level, configure lazily
+logger = logging.getLogger(__name__)
+_logger_configured = False
+
+
+def _ensure_logging():
+    """Ensure logging is configured (called lazily on first use)."""
+    global _logger_configured
+    if not _logger_configured:
+        config = get_config()
+        setup_logging(
+            log_level=config.log_level,
+            log_format=config.log_format,
+            log_file=str(config.log_file),
+        )
+        _logger_configured = True
 
 
 class FileStabilizer:
@@ -201,6 +213,7 @@ class DaemonManager:
         processed_path: Path,
         failed_path: Path,
     ):
+        _ensure_logging()  # Lazy logger initialization
         self.inbox_path = inbox_path
         self.processed_path = processed_path
         self.failed_path = failed_path

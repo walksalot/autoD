@@ -10,6 +10,8 @@ import json
 import time
 from datetime import datetime
 
+import logging
+
 from src.config import get_config
 from src.logging_config import setup_logging, get_correlation_id
 from src.models import Document
@@ -22,11 +24,22 @@ from src.vector_store import VectorStoreManager
 from src.token_counter import calculate_cost, format_cost_report, check_cost_alerts
 
 
-logger = setup_logging(
-    log_level=get_config().log_level,
-    log_format=get_config().log_format,
-    log_file=str(get_config().log_file),
-)
+# Use basic logger at module level, configure lazily
+logger = logging.getLogger(__name__)
+_logger_configured = False
+
+
+def _ensure_logging():
+    """Ensure logging is configured (called lazily on first use)."""
+    global _logger_configured
+    if not _logger_configured:
+        config = get_config()
+        setup_logging(
+            log_level=config.log_level,
+            log_format=config.log_format,
+            log_file=str(config.log_file),
+        )
+        _logger_configured = True
 
 
 class ProcessingResult:
@@ -97,6 +110,7 @@ def process_document(
     Returns:
         ProcessingResult with status and metadata
     """
+    _ensure_logging()  # Lazy logger initialization
     correlation_id = get_correlation_id()
     start_time = time.time()
 
@@ -306,6 +320,7 @@ def process_inbox(
     Returns:
         Summary dict with success/failure counts and total cost
     """
+    _ensure_logging()  # Lazy logger initialization
     config = get_config()
 
     # Create output directories
