@@ -19,6 +19,11 @@ This directory contains CI/CD workflows for the autoD project.
   - Security scanning with safety
   - Type checking with mypy
 
+- **docker-build**: Docker image validation (NEW)
+  - Builds Docker image with caching
+  - Runs basic container smoke test
+  - Validates image can import application modules
+
 - **build**: Package building
   - Creates distribution packages
   - Uploads build artifacts
@@ -26,6 +31,39 @@ This directory contains CI/CD workflows for the autoD project.
 **Coverage Targets:**
 - Week 1 modules (cost_calculator, retry_logic, pipeline, stages): 75%+
 - Overall project: 37%+ (will increase as more modules are implemented)
+
+### `integration-pr.yml` - Integration Checkpoint PR (NEW)
+**Triggers:** PRs to `integration/*` and `main` branches
+
+**Purpose:** Enhanced validation for multi-agent parallel execution integration checkpoints.
+
+**Jobs:**
+- **validate-integration**: Comprehensive integration validation
+  - Full test suite with coverage
+  - Week 1 coverage threshold check (≥75%)
+  - Pre-commit hooks validation
+  - Docker image build
+  - Docker Compose multi-container validation
+  - Integration smoke tests
+  - Secrets scanning
+  - Posts detailed results as PR comment
+
+- **block-merge-on-failure**: Prevents merge if quality gates fail
+
+**Quality Gates:**
+All gates must pass before PR can be merged:
+- ✅ Full test suite passes
+- ✅ Week 1 modules ≥75% coverage
+- ✅ Docker build succeeds
+- ✅ Docker Compose stack validates
+- ✅ Integration smoke tests pass
+- ✅ No secrets detected in commits
+
+**Multi-Agent Workflow Support:**
+This workflow is specifically designed for the git worktree-based parallel execution strategy:
+- Workstream branches → Integration branch: Requires PR with this workflow
+- Integration branch → Main: Requires PR with this workflow
+- Workstream branches (direct commits): Uses standard `ci.yml` workflow only
 
 ### `pre-commit.yml` - Pre-commit Hooks
 **Triggers:** Push/PR to main, develop, integration/*
@@ -154,10 +192,40 @@ Access build artifacts and coverage reports from workflow run page
    pre-commit run --all-files
    ```
 
-2. **Use feature branches with PRs**
-   - Create feature branch from `develop`
-   - Open PR to `develop` for review
-   - Merge to `main` for releases
+2. **Multi-Agent Parallel Execution (Git Worktrees)**
+   - **Workstream branches**: Direct commits (no PRs needed)
+     ```bash
+     cd ~/Developer/Projects/autoD-retry-error-handling
+     git add . && git commit -m "feat: add exponential backoff"
+     git push origin workstream/retry-error-handling
+     ```
+
+   - **Integration checkpoints**: Require PRs at Day 3, 5, 7
+     ```bash
+     # Day 3: Merge workstreams to integration branch
+     cd ~/Developer/Projects/autoD  # Main worktree
+     git checkout integration/week1-foundation
+     git merge workstream/testing --no-ff
+     git merge workstream/database-pipeline --no-ff
+     git push origin integration/week1-foundation
+
+     # Create PR using template (auto-populates checklist)
+     gh pr create --base main --fill
+     ```
+
+   - **Final integration → main**: Require PR with full validation
+     ```bash
+     # After all workstreams merged to integration branch
+     gh pr create --base main --head integration/week1-foundation --fill
+     ```
+
+   **Why this workflow?**
+   - Fast iteration within workstreams (5-6 agents work independently)
+   - Quality gates at integration points (automated CI/CD validation)
+   - Clean main branch history (only integration merges)
+   - Easy rollback (revert single integration PR if needed)
+
+   See `docs/PARALLEL_EXECUTION_STRATEGY.md` for full details.
 
 3. **Tag releases properly**
    ```bash

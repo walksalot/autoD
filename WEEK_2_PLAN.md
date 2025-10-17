@@ -1,5 +1,7 @@
 # Week 2 Development Plan
 
+> **📌 STATUS NOTE (October 16, 2025)**: This document was created as aspirational planning. Many features described here have already been implemented as part of the accelerated Week 1-3 development sprint. See `docs/overview.md` for actual implementation status (Week 3 Complete). This document remains useful for understanding enhancement opportunities and future roadmap ideas.
+
 **Start Date**: October 17, 2025
 **Duration**: 7 days
 **Previous Milestone**: Week 1 Foundation Complete (256 tests, 93% coverage)
@@ -7,6 +9,11 @@
 ## Executive Summary
 
 Week 2 focuses on three parallel workstreams to deliver production-grade vector search, batch processing capabilities, and operational hardening. Building on Week 1's foundation (database, pipeline, retry logic, cost tracking), we'll add the remaining critical components for production deployment.
+
+**IMPORTANT CLARIFICATIONS**:
+- **Vector Store**: ✅ Already implemented in `src/vector_store.py` (365 lines) with full OpenAI integration
+- **Batch Processing**: This refers to LOCAL parallel processing (NOT OpenAI's Batch API service) - ✅ Already in `src/processor.py`
+- **Production Hardening**: ✅ Monitoring infrastructure added (`src/monitoring.py` - 392 lines)
 
 **Success Criteria:**
 - Vector store integration operational with semantic search

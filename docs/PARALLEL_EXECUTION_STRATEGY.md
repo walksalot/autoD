@@ -1176,6 +1176,207 @@ pytest tests/ -v && mypy src/ && black src/ tests/ --check
 
 ---
 
+## Pull Request Workflow for Integration Checkpoints
+
+### When to Use Pull Requests
+
+**Workstream Branches** (direct commits, no PRs):
+```bash
+# Inside workstream worktree - commit directly
+cd ~/Developer/Projects/autoD-retry-error-handling
+git add . && git commit -m "feat: add exponential backoff logic"
+git push origin workstream/retry-error-handling
+```
+
+**Integration Checkpoints** (required PRs):
+```bash
+# Day 3, 5, 7: Create PR for integration → main
+cd ~/Developer/Projects/autoD  # Main worktree
+git checkout integration/week1-foundation
+git push origin integration/week1-foundation
+
+# Open PR using template (auto-populates checklist)
+gh pr create --base main --fill
+```
+
+### PR Template Features
+
+The `.github/pull_request_template.md` auto-populates:
+- ✅ Workstream checklist (which workstreams are being merged)
+- ✅ Quality gates (tests, coverage, Docker, integration tests)
+- ✅ Risk assessment section
+- ✅ Rollback plan template
+- ✅ Manual validation checklist
+
+**One-command PR creation:**
+```bash
+gh pr create --fill  # Uses template, auto-fills from commits
+```
+
+### Automated Quality Gates (GitHub Actions)
+
+The `integration-pr.yml` workflow runs automatically on PRs to `integration/*` or `main`:
+
+**Validation Steps:**
+1. Full test suite with coverage (≥75% for Week 1 modules)
+2. Pre-commit hooks (Black, Ruff, Mypy)
+3. Docker build validation
+4. Docker Compose multi-container validation (app + PostgreSQL)
+5. Integration smoke tests
+6. Secrets scanning (detects committed API keys)
+
+**PR Comment:**
+GitHub Actions posts detailed results as a PR comment:
+```
+## Integration Checkpoint Validation Results
+
+**Overall Status:** ✅ ALL QUALITY GATES PASSED
+
+### Quality Gates
+
+| Check | Status |
+|-------|--------|
+| Full Test Suite | ✅ PASS |
+| Week 1 Coverage (≥75%) | ✅ PASS (76%) |
+| Pre-commit Hooks | ✅ PASS |
+| Docker Build | ✅ PASS |
+| Docker Compose Validation | ✅ PASS |
+| Integration Smoke Tests | ✅ PASS |
+| Secrets Check | ✅ PASS |
+
+### Next Steps
+
+✅ All quality gates passed. This PR is ready to merge.
+```
+
+### Integration Workflow with PRs
+
+**Day 3: Foundation Integration PR**
+```bash
+# Terminal Tab #1 (project manager in autoD/)
+git checkout -b integration/week1-foundation
+
+# Merge workstreams locally first
+git merge workstream/testing --no-ff -m "Merge Workstream 4: Test Infrastructure"
+git merge workstream/database-pipeline --no-ff -m "Merge Workstream 1: Database + Pipeline"
+
+# Run local quality gates
+pytest tests/ -v --cov=src --cov-report=term
+# Expected: 60%+ coverage, all tests pass
+
+# Push integration branch
+git push origin integration/week1-foundation
+
+# Create PR with template
+gh pr create --base main --fill --title "Week 1 Day 3: Foundation (Testing + Database)"
+
+# GitHub Actions runs automatically:
+# - Full test suite
+# - Docker build
+# - Integration validation
+# - Posts results as PR comment
+
+# After PR approval + CI green → Merge via GitHub UI or:
+gh pr merge --squash --delete-branch
+```
+
+**Day 5: Retry Logic Integration PR**
+```bash
+# Terminal Tab #1 (project manager in autoD/)
+git checkout integration/week1-foundation
+
+# Merge retry logic
+git merge workstream/retry-error-handling --no-ff -m "Merge Workstream 2: Retry Logic + Error Handling"
+
+# Run local quality gates
+pytest tests/ -v --cov=src --cov-report=term
+# Expected: 70%+ coverage, all tests pass
+
+# Push and create PR
+git push origin integration/week1-foundation
+gh pr create --base main --fill --title "Week 1 Day 5: Add Retry Logic + Error Handling"
+
+# CI validates → Merge after approval
+```
+
+**Day 7: Final Integration PR**
+```bash
+# Terminal Tab #1 (project manager in autoD/)
+git checkout integration/week1-foundation
+
+# Merge token tracking (final workstream)
+git merge workstream/token-tracking --no-ff -m "Merge Workstream 3: Token Tracking + Cost Monitoring"
+
+# Run local quality gates
+pytest tests/ -v --cov=src --cov-report=term
+# Expected: 75%+ coverage, all tests pass
+
+# Integration test: Process 100 PDFs
+python process_inbox.py
+
+# Push and create final PR
+git push origin integration/week1-foundation
+gh pr create --base main --fill --title "Week 1 Complete: Core Pipeline + Retry + Token Tracking"
+
+# CI validates → Merge to main after approval
+gh pr merge --squash --delete-branch
+
+# Tag release
+git checkout main
+git pull
+git tag week1-complete
+git push origin week1-complete
+```
+
+### Why This PR Strategy Works
+
+**Fast Iteration** (workstreams):
+- No PR overhead within workstreams
+- 5-6 agents work independently
+- Direct commits to workstream branches
+
+**Quality Gates** (integration):
+- Automated CI/CD validation at critical merge points
+- Prevents bad merges before they hit main
+- Clear documentation of what each integration includes
+
+**Clean History** (main):
+- Main branch only has integration merges
+- Easy to understand project evolution
+- Easy to roll back (revert single integration PR)
+
+**Safety** (rollback):
+- If integration PR fails CI → fix in workstream, retry
+- If integrated PR causes production issues → revert PR, redeploy
+
+### PR Commands Reference
+
+```bash
+# Create PR using template (auto-populates checklist)
+gh pr create --fill
+
+# Create PR with specific base and title
+gh pr create --base main --head integration/week1-foundation \
+  --title "Week 1 Day 3: Foundation" --fill
+
+# List PRs
+gh pr list
+
+# View PR status
+gh pr status
+
+# View CI checks
+gh pr checks
+
+# Merge PR (squash merge recommended for clean history)
+gh pr merge --squash --delete-branch
+
+# Merge PR (no-fast-forward to preserve integration history)
+gh pr merge --merge --delete-branch
+```
+
+---
+
 ## References
 
 - **Claude Code Best Practices**: https://www.anthropic.com/research/claude-code-best-practices
@@ -1184,6 +1385,9 @@ pytest tests/ -v && mypy src/ && black src/ tests/ --check
 - **Code Patterns**: `docs/CODE_ARCHITECTURE.md`
 - **Original vs Revised**: `docs/CHANGES_FROM_ORIGINAL_PLAN.md`
 - **ADR 0001**: `docs/adr/0001-iterative-phasing-over-parallel-development.md`
+- **PR Template**: `.github/pull_request_template.md`
+- **Integration PR Workflow**: `.github/workflows/integration-pr.yml`
+- **Workflows Documentation**: `.github/workflows/README.md`
 
 ---
 

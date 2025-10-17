@@ -48,6 +48,10 @@ class Document(Base):
         source_file_id: OpenAI Files API file ID
         vector_store_file_id: OpenAI vector store file ID (optional, Workstream 4)
         metadata_json: Full structured output from Responses API (JSON blob)
+        embedding_cache_key: SHA-256 hash of text used for embedding
+        embedding_vector: Cached embedding vector (1536 floats)
+        embedding_model: OpenAI model used for embedding
+        embedding_generated_at: Timestamp when embedding was generated
         status: Processing status (pending|processing|completed|failed)
         error_message: Error message if status is failed
 
@@ -131,6 +135,32 @@ class Document(Base):
         comment="Full structured output from OpenAI Responses API",
     )
 
+    # === Embedding Cache (Workstream 1) ===
+    embedding_cache_key: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        index=True,
+        nullable=True,
+        comment="SHA-256 hash of text used for embedding (for cache invalidation)",
+    )
+
+    embedding_vector: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        comment="Cached embedding vector (list of 1536 floats) to avoid regeneration",
+    )
+
+    embedding_model: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="OpenAI model used to generate embedding (e.g., text-embedding-3-small)",
+    )
+
+    embedding_generated_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime,
+        nullable=True,
+        comment="UTC timestamp when embedding was generated",
+    )
+
     # === Status Tracking ===
     status: Mapped[str] = mapped_column(
         String(32),
@@ -169,6 +199,14 @@ class Document(Base):
             "source_file_id": self.source_file_id,
             "vector_store_file_id": self.vector_store_file_id,
             "metadata_json": self.metadata_json,
+            "embedding_cache_key": self.embedding_cache_key,
+            "embedding_vector": self.embedding_vector,
+            "embedding_model": self.embedding_model,
+            "embedding_generated_at": (
+                self.embedding_generated_at.isoformat()
+                if self.embedding_generated_at
+                else None
+            ),
             "status": self.status,
             "error_message": self.error_message,
         }

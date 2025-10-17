@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from openai import OpenAI
 
 from src.pipeline import ProcessingContext, ProcessingStage
+from src.retry_logic import retry
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +50,10 @@ class UploadToFilesAPIStage(ProcessingStage):
         """
         self.client = client
 
+    @retry(max_attempts=5, initial_wait=2.0, max_wait=60.0)
     def execute(self, context: ProcessingContext) -> ProcessingContext:
         """
-        Upload PDF file to OpenAI Files API.
+        Upload PDF file to OpenAI Files API with automatic retry.
 
         Args:
             context: Processing context with pdf_bytes and pdf_path set
@@ -61,7 +63,7 @@ class UploadToFilesAPIStage(ProcessingStage):
 
         Raises:
             ValueError: If pdf_bytes not set (previous stage failed)
-            openai.APIError: If upload fails
+            openai.APIError: If upload fails after 5 retries
         """
         if context.pdf_bytes is None:
             with open(context.pdf_path, "rb") as f:

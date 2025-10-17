@@ -6,18 +6,12 @@ Implements exponential backoff and error handling for production use.
 from typing import Dict, Any, Optional
 import time
 import json
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_exponential,
-    retry_if_exception_type,
-    before_sleep_log,
-)
-from openai import OpenAI, RateLimitError, APIConnectionError, APITimeoutError
+from openai import OpenAI, APIConnectionError
 import logging
 import requests
 
 from src.config import get_config
+from src.retry_logic import retry
 
 
 logger = logging.getLogger("paper_autopilot")
@@ -133,22 +127,11 @@ class ResponsesAPIClient:
         )
         self._api_url = "https://api.openai.com/v1/responses"
 
-    @retry(
-        wait=wait_exponential(multiplier=1, min=4, max=60),
-        stop=stop_after_attempt(5),
-        retry=retry_if_exception_type(
-            (
-                RateLimitError,
-                APIConnectionError,
-                APITimeoutError,
-            )
-        ),
-        before_sleep=before_sleep_log(logger, logging.WARNING),
-    )
+    @retry(max_attempts=5, initial_wait=2.0, max_wait=60.0)
     def _call_responses_api_with_retry(
         self,
         payload: Dict[str, Any],
-    ) -> Dict[str, Any]:
+    ) -> Any:
         """
         Call Responses API with automatic retry.
 
@@ -165,27 +148,23 @@ class ResponsesAPIClient:
             payload: Complete API request payload
 
         Returns:
-            API response as dict
+            API response object from OpenAI SDK
 
         Raises:
             Exception: If all retries exhausted or non-retryable error
         """
         logger.info(f"Calling Responses API (model: {payload.get('model')})")
 
-        try:
-            response = self.client.post(
-                "/v1/responses",
-                cast_to=dict,
-                body=payload,
-            )
-            logger.info("API call successful (OpenAI SDK)")
-            return response
-        except APIConnectionError as err:
-            logger.warning(
-                "OpenAI SDK connection error, retrying with requests session: %s",
-                err,
-            )
-            return self._post_with_requests(payload)
+        # Use the proper SDK method for Responses API
+        response = self.client.responses.create(**payload)
+        logger.info("API call successful")
+
+        # Convert response object to dict for backwards compatibility with extract methods
+        return (
+            response.model_dump()
+            if hasattr(response, "model_dump")
+            else response.dict()
+        )
 
     def _post_with_requests(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """

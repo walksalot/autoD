@@ -1,0 +1,410 @@
+{
+  "dashboard": {
+    "title": "AutoD Document Processing",
+    "tags": ["autod", "production", "monitoring"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "30s",
+
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+
+    "panels": [
+      {
+        "id": 1,
+        "type": "stat",
+        "title": "Service Status",
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+        "targets": [
+          {
+            "expr": "autod_up",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "value": "0", "text": "DOWN"},
+              {"type": "value", "value": "1", "text": "UP"}
+            ],
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+
+      {
+        "id": 2,
+        "type": "stat",
+        "title": "Uptime",
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+        "targets": [
+          {
+            "expr": "autod_uptime_seconds",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "decimals": 0
+          }
+        }
+      },
+
+      {
+        "id": 3,
+        "type": "stat",
+        "title": "Documents Processed (1h)",
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+        "targets": [
+          {
+            "expr": "increase(autod_documents_processed_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "decimals": 0,
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "yellow"},
+                {"value": 10, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+
+      {
+        "id": 4,
+        "type": "stat",
+        "title": "API Cost (1h)",
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+        "targets": [
+          {
+            "expr": "increase(autod_api_cost_usd_total[1h])",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyUSD",
+            "decimals": 4,
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 1, "color": "yellow"},
+                {"value": 5, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+
+      {
+        "id": 5,
+        "type": "graph",
+        "title": "Processing Duration (P95)",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 4},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(autod_processing_duration_ms_bucket[5m]))",
+            "legendFormat": "P95 Duration",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(autod_processing_duration_ms_bucket[5m]))",
+            "legendFormat": "P50 Duration",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Duration (ms)",
+            "format": "ms",
+            "decimals": 0
+          },
+          {
+            "show": false
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 2000,
+            "colorMode": "critical",
+            "op": "gt",
+            "fill": true,
+            "line": true
+          }
+        ],
+        "alert": {
+          "name": "High Processing Latency",
+          "message": "P95 processing latency exceeds 2s",
+          "conditions": [
+            {
+              "evaluator": {"params": [2000], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ]
+        }
+      },
+
+      {
+        "id": 6,
+        "type": "graph",
+        "title": "Error Rate (%)",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 4},
+        "targets": [
+          {
+            "expr": "rate(autod_errors_total[5m]) / rate(autod_documents_processed_total[5m]) * 100",
+            "legendFormat": "Error Rate",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Error Rate (%)",
+            "format": "percent",
+            "max": 100
+          },
+          {
+            "show": false
+          }
+        ],
+        "thresholds": [
+          {
+            "value": 5,
+            "colorMode": "critical",
+            "op": "gt",
+            "fill": true,
+            "line": true
+          }
+        ],
+        "alert": {
+          "name": "High Error Rate",
+          "message": "Error rate exceeds 5%",
+          "conditions": [
+            {
+              "evaluator": {"params": [5], "type": "gt"},
+              "operator": {"type": "and"},
+              "query": {"params": ["A", "5m", "now"]},
+              "reducer": {"params": [], "type": "avg"},
+              "type": "query"
+            }
+          ]
+        }
+      },
+
+      {
+        "id": 7,
+        "type": "graph",
+        "title": "Token Usage by Type",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 12},
+        "targets": [
+          {
+            "expr": "rate(autod_prompt_tokens_total[5m])",
+            "legendFormat": "Prompt Tokens",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(autod_completion_tokens_total[5m])",
+            "legendFormat": "Completion Tokens",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(autod_cached_tokens_total[5m])",
+            "legendFormat": "Cached Tokens",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Tokens/s",
+            "format": "short"
+          },
+          {
+            "show": false
+          }
+        ],
+        "stack": true
+      },
+
+      {
+        "id": 8,
+        "type": "graph",
+        "title": "API Cost Rate",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 12},
+        "targets": [
+          {
+            "expr": "rate(autod_api_cost_usd_total[5m]) * 3600",
+            "legendFormat": "Cost per Hour",
+            "refId": "A"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "USD/hour",
+            "format": "currencyUSD",
+            "decimals": 4
+          },
+          {
+            "show": false
+          }
+        ]
+      },
+
+      {
+        "id": 9,
+        "type": "graph",
+        "title": "Stage Duration Breakdown",
+        "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
+        "targets": [
+          {
+            "expr": "rate(autod_stage_deduplication_duration_ms_sum[5m]) / rate(autod_stage_deduplication_duration_ms_count[5m])",
+            "legendFormat": "Deduplication",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(autod_stage_upload_duration_ms_sum[5m]) / rate(autod_stage_upload_duration_ms_count[5m])",
+            "legendFormat": "Upload",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(autod_stage_extraction_duration_ms_sum[5m]) / rate(autod_stage_extraction_duration_ms_count[5m])",
+            "legendFormat": "Extraction",
+            "refId": "C"
+          },
+          {
+            "expr": "rate(autod_stage_vector_store_duration_ms_sum[5m]) / rate(autod_stage_vector_store_duration_ms_count[5m])",
+            "legendFormat": "Vector Store",
+            "refId": "D"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Average Duration (ms)",
+            "format": "ms"
+          },
+          {
+            "show": false
+          }
+        ],
+        "stack": false
+      },
+
+      {
+        "id": 10,
+        "type": "table",
+        "title": "Errors by Stage",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 28},
+        "targets": [
+          {
+            "expr": "sum by (stage) (increase(autod_errors_total[1h]))",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "stage": "Stage",
+                "Value": "Errors (1h)"
+              }
+            }
+          }
+        ]
+      },
+
+      {
+        "id": 11,
+        "type": "stat",
+        "title": "Cache Hit Rate",
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 28},
+        "targets": [
+          {
+            "expr": "(sum(increase(autod_cached_tokens_total[1h])) / (sum(increase(autod_prompt_tokens_total[1h])) + sum(increase(autod_cached_tokens_total[1h])))) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "decimals": 1,
+            "color": {"mode": "thresholds"},
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 10, "color": "yellow"},
+                {"value": 25, "color": "green"}
+              ]
+            },
+            "min": 0,
+            "max": 100
+          }
+        }
+      }
+    ],
+
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        },
+        {
+          "name": "interval",
+          "type": "interval",
+          "query": "1m,5m,10m,30m,1h",
+          "current": {
+            "text": "5m",
+            "value": "5m"
+          }
+        }
+      ]
+    },
+
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "enable": true,
+          "expr": "changes(autod_uptime_seconds[5m]) > 0",
+          "iconColor": "blue",
+          "tagKeys": "deployment"
+        }
+      ]
+    }
+  },
+
+  "folderId": 0,
+  "overwrite": true
+}
