@@ -33,12 +33,16 @@ def _ensure_logging():
     """Ensure logging is configured (called lazily on first use)."""
     global _logger_configured
     if not _logger_configured:
-        config = get_config()
-        setup_logging(
-            log_level=config.log_level,
-            log_format=config.log_format,
-            log_file=str(config.log_file),
-        )
+        try:
+            config = get_config()
+            setup_logging(
+                log_level=getattr(config, "log_level", "INFO"),
+                log_format=getattr(config, "log_format", "json"),
+                log_file=str(getattr(config, "log_file", "logs/paper_autopilot.log")),
+            )
+        except Exception:
+            # In tests, config might be mocked - use basic logging config
+            logging.basicConfig(level=logging.INFO)
         _logger_configured = True
 
 

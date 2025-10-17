@@ -14,7 +14,7 @@ Design Decisions:
 
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
-from sqlalchemy import String, DateTime, Text, JSON, create_engine, BigInteger
+from sqlalchemy import String, DateTime, Text, JSON, Integer, create_engine, BigInteger
 from sqlalchemy.orm import (
     DeclarativeBase,
     Mapped,
@@ -95,6 +95,12 @@ class Document(Base):
         comment="Size of the PDF file in bytes",
     )
 
+    page_count: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Number of pages in the PDF document",
+    )
+
     # === Timestamps ===
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -162,6 +168,7 @@ class Document(Base):
             "sha256_base64": self.sha256_base64,
             "original_filename": self.original_filename,
             "file_size_bytes": self.file_size_bytes,
+            "page_count": self.page_count,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "processed_at": (
                 self.processed_at.isoformat() if self.processed_at else None
