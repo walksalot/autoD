@@ -19,8 +19,13 @@ watchdog>=4.0.0
 tenacity>=9.0.0
 python-dotenv>=1.0.1
 
+# Health checks and monitoring
+fastapi>=0.109.0
+uvicorn>=0.27.0
+
 # Testing
 pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-mock>=3.11.0
 hypothesis>=6.82.0
+httpx>=0.26.0  # For FastAPI test client

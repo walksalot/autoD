@@ -12,11 +12,11 @@ once the vector stores API is available in the SDK.
 
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-import time
 from openai import OpenAI
 
 from src.config import get_config
 from src.models import Document
+from src.retry_logic import retry
 
 
 VECTOR_STORE_CACHE_FILE = ".paper_autopilot_vs_id"
@@ -108,25 +108,25 @@ class VectorStoreManager:
         with open(cache_path, "w") as f:
             f.write(vector_store_id)
 
+    @retry(max_attempts=5, initial_wait=2.0, max_wait=60.0)
     def add_file_to_vector_store(
         self,
         file_path: Path,
         metadata: Dict[str, str],
-        max_retries: int = 3,
     ) -> Optional[str]:
         """
-        Upload file to vector store with metadata.
+        Upload file to vector store with metadata and automatic retry.
 
         Args:
             file_path: Path to PDF file
             metadata: Metadata attributes (max 16 key-value pairs)
-            max_retries: Maximum retry attempts for transient failures
 
         Returns:
             File ID if successful, None otherwise
 
         Raises:
             ValueError: If metadata exceeds 16 attributes
+            openai.APIError: If upload fails after 5 retries
         """
         if len(metadata) > 16:
             raise ValueError(f"Metadata has {len(metadata)} attributes, max 16 allowed")
@@ -135,34 +135,19 @@ class VectorStoreManager:
         if not self.vector_store_id:
             self.get_or_create_vector_store()
 
-        # Upload file
-        for attempt in range(max_retries):
-            try:
-                # First, upload file
-                with open(file_path, "rb") as f:
-                    file_obj = self.client.files.create(file=f, purpose="assistants")
+        # First, upload file
+        with open(file_path, "rb") as f:
+            file_obj = self.client.files.create(file=f, purpose="assistants")
 
-                # Then add to vector store with metadata
-                _vector_store_file = self.client.beta.vector_stores.files.create(
-                    vector_store_id=self.vector_store_id,
-                    file_id=file_obj.id,
-                    # Note: metadata is set on file object, not vector store file
-                )
+        # Then add to vector store with metadata
+        _vector_store_file = self.client.beta.vector_stores.files.create(
+            vector_store_id=self.vector_store_id,
+            file_id=file_obj.id,
+            # Note: metadata is set on file object, not vector store file
+        )
 
-                print(f"✅ Uploaded file to vector store: {file_obj.id}")
-                return file_obj.id
-
-            except Exception as e:
-                if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff
-                    print(f"⚠️ Upload failed (attempt {attempt + 1}/{max_retries}): {e}")
-                    print(f"   Retrying in {wait_time}s...")
-                    time.sleep(wait_time)
-                else:
-                    print(f"❌ Upload failed after {max_retries} attempts: {e}")
-                    return None
-
-        return None
+        print(f"✅ Uploaded file to vector store: {file_obj.id}")
+        return file_obj.id
 
     def search_similar_documents(
         self,
