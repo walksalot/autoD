@@ -430,5 +430,220 @@ class TestCaseInsensitiveEnvVars:
         assert config.openai_model == "gpt-5-pro"
 
 
+class TestCostConfiguration:
+    """Test cost and pricing configuration fields."""
+
+    def test_pricing_fields_have_defaults(self):
+        """Test that pricing fields load with correct defaults."""
+        os.environ["OPENAI_API_KEY"] = "sk-test-1234567890abcdef1234567890"
+
+        config = Config()
+
+        assert config.prompt_token_price_per_million == 0.15
+        assert config.completion_token_price_per_million == 0.60
+        assert config.cached_token_price_per_million == 0.075
+
+    def test_cost_alert_thresholds_have_defaults(self):
+        """Test that cost alert thresholds load with correct defaults."""
+        os.environ["OPENAI_API_KEY"] = "sk-test-1234567890abcdef1234567890"
+
+        config = Config()
+
+        assert config.cost_alert_threshold_1 == 10.00
+        assert config.cost_alert_threshold_2 == 50.00
+        assert config.cost_alert_threshold_3 == 100.00
+
+    def test_custom_pricing_overrides_defaults(self):
+        """Test that custom pricing values override defaults."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "PROMPT_TOKEN_PRICE_PER_MILLION": "0.20",
+                "COMPLETION_TOKEN_PRICE_PER_MILLION": "0.80",
+                "CACHED_TOKEN_PRICE_PER_MILLION": "0.10",
+            }
+        )
+
+        config = Config()
+
+        assert config.prompt_token_price_per_million == 0.20
+        assert config.completion_token_price_per_million == 0.80
+        assert config.cached_token_price_per_million == 0.10
+
+    def test_custom_cost_thresholds_override_defaults(self):
+        """Test that custom cost thresholds override defaults."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "COST_ALERT_THRESHOLD_1": "5.00",
+                "COST_ALERT_THRESHOLD_2": "25.00",
+                "COST_ALERT_THRESHOLD_3": "75.00",
+            }
+        )
+
+        config = Config()
+
+        assert config.cost_alert_threshold_1 == 5.00
+        assert config.cost_alert_threshold_2 == 25.00
+        assert config.cost_alert_threshold_3 == 75.00
+
+    def test_cost_thresholds_must_be_ascending(self):
+        """Test that cost alert thresholds must be in ascending order."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "COST_ALERT_THRESHOLD_1": "50.00",
+                "COST_ALERT_THRESHOLD_2": "30.00",  # Invalid: not ascending
+                "COST_ALERT_THRESHOLD_3": "100.00",
+            }
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            Config()
+
+        error_msg = str(exc_info.value)
+        assert "ascending order" in error_msg
+        assert "threshold_1" in error_msg
+        assert "threshold_2" in error_msg
+
+    def test_equal_cost_thresholds_rejected(self):
+        """Test that equal cost thresholds are rejected."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "COST_ALERT_THRESHOLD_1": "25.00",
+                "COST_ALERT_THRESHOLD_2": "25.00",  # Equal to threshold_1
+                "COST_ALERT_THRESHOLD_3": "75.00",
+            }
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            Config()
+
+        error_msg = str(exc_info.value)
+        assert "ascending order" in error_msg
+
+    def test_negative_pricing_rejected(self):
+        """Test that negative pricing values are rejected."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "PROMPT_TOKEN_PRICE_PER_MILLION": "-0.15",
+            }
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            Config()
+
+        error_msg = str(exc_info.value)
+        assert "greater than or equal to 0" in error_msg.lower()
+
+    def test_negative_cost_threshold_rejected(self):
+        """Test that negative cost thresholds are rejected."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "COST_ALERT_THRESHOLD_1": "-10.00",
+            }
+        )
+
+        with pytest.raises(ValidationError) as exc_info:
+            Config()
+
+        error_msg = str(exc_info.value)
+        assert "greater than or equal to 0" in error_msg.lower()
+
+    def test_zero_pricing_allowed(self):
+        """Test that zero pricing is allowed (for free tiers or testing)."""
+        os.environ.update(
+            {
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                "PROMPT_TOKEN_PRICE_PER_MILLION": "0.0",
+                "COMPLETION_TOKEN_PRICE_PER_MILLION": "0.0",
+                "CACHED_TOKEN_PRICE_PER_MILLION": "0.0",
+            }
+        )
+
+        config = Config()
+
+        assert config.prompt_token_price_per_million == 0.0
+        assert config.completion_token_price_per_million == 0.0
+        assert config.cached_token_price_per_million == 0.0
+
+    def test_all_21_environment_variables_present(self):
+        """Test that all 21 environment variables from .env.example are supported."""
+        os.environ.update(
+            {
+                # 1. OPENAI_API_KEY
+                "OPENAI_API_KEY": "sk-test-1234567890abcdef1234567890",
+                # 2. OPENAI_MODEL
+                "OPENAI_MODEL": "gpt-5-mini",
+                # 3. PAPER_AUTOPILOT_DB_URL
+                "PAPER_AUTOPILOT_DB_URL": "sqlite:///test.db",
+                # 4. API_TIMEOUT_SECONDS
+                "API_TIMEOUT_SECONDS": "300",
+                # 5. MAX_RETRIES
+                "MAX_RETRIES": "5",
+                # 6. RATE_LIMIT_RPM
+                "RATE_LIMIT_RPM": "60",
+                # 7. PROMPT_TOKEN_PRICE_PER_MILLION
+                "PROMPT_TOKEN_PRICE_PER_MILLION": "0.15",
+                # 8. COMPLETION_TOKEN_PRICE_PER_MILLION
+                "COMPLETION_TOKEN_PRICE_PER_MILLION": "0.60",
+                # 9. CACHED_TOKEN_PRICE_PER_MILLION
+                "CACHED_TOKEN_PRICE_PER_MILLION": "0.075",
+                # 10. COST_ALERT_THRESHOLD_1
+                "COST_ALERT_THRESHOLD_1": "10.00",
+                # 11. COST_ALERT_THRESHOLD_2
+                "COST_ALERT_THRESHOLD_2": "50.00",
+                # 12. COST_ALERT_THRESHOLD_3
+                "COST_ALERT_THRESHOLD_3": "100.00",
+                # 13. BATCH_SIZE
+                "BATCH_SIZE": "10",
+                # 14. MAX_WORKERS
+                "MAX_WORKERS": "3",
+                # 15. PROCESSING_TIMEOUT_PER_DOC
+                "PROCESSING_TIMEOUT_PER_DOC": "60",
+                # 16. LOG_LEVEL
+                "LOG_LEVEL": "INFO",
+                # 17. LOG_FORMAT
+                "LOG_FORMAT": "json",
+                # 18. LOG_FILE
+                "LOG_FILE": "logs/test.log",
+                # 19. LOG_MAX_BYTES
+                "LOG_MAX_BYTES": "10485760",
+                # 20. LOG_BACKUP_COUNT
+                "LOG_BACKUP_COUNT": "5",
+                # 21. VECTOR_STORE_NAME
+                "VECTOR_STORE_NAME": "test_vector_store",
+            }
+        )
+
+        config = Config()
+
+        # Verify all 21 variables are accessible
+        assert config.openai_api_key == "sk-test-1234567890abcdef1234567890"
+        assert config.openai_model == "gpt-5-mini"
+        assert config.paper_autopilot_db_url == "sqlite:///test.db"
+        assert config.api_timeout_seconds == 300
+        assert config.max_retries == 5
+        assert config.rate_limit_rpm == 60
+        assert config.prompt_token_price_per_million == 0.15
+        assert config.completion_token_price_per_million == 0.60
+        assert config.cached_token_price_per_million == 0.075
+        assert config.cost_alert_threshold_1 == 10.00
+        assert config.cost_alert_threshold_2 == 50.00
+        assert config.cost_alert_threshold_3 == 100.00
+        assert config.batch_size == 10
+        assert config.max_workers == 3
+        assert config.processing_timeout_per_doc == 60
+        assert config.log_level == "INFO"
+        assert config.log_format == "json"
+        assert str(config.log_file) == "logs/test.log"
+        assert config.log_max_bytes == 10485760
+        assert config.log_backup_count == 5
+        assert config.vector_store_name == "test_vector_store"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

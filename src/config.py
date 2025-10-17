@@ -112,6 +112,30 @@ class Config(BaseSettings):
                 values["openai_api_key"] = file_key
         return values
 
+    @model_validator(mode="after")
+    def validate_cost_thresholds(self) -> "Config":
+        """
+        Ensure cost alert thresholds are in ascending order.
+
+        This prevents configuration errors where higher-tier alerts
+        trigger before lower-tier ones.
+
+        Raises:
+            ValueError: If thresholds are not in ascending order
+        """
+        if not (
+            self.cost_alert_threshold_1
+            < self.cost_alert_threshold_2
+            < self.cost_alert_threshold_3
+        ):
+            raise ValueError(
+                f"Cost alert thresholds must be in ascending order: "
+                f"threshold_1 ({self.cost_alert_threshold_1}) < "
+                f"threshold_2 ({self.cost_alert_threshold_2}) < "
+                f"threshold_3 ({self.cost_alert_threshold_3})"
+            )
+        return self
+
     # === Database Configuration ===
     paper_autopilot_db_url: str = Field(
         default="sqlite:///paper_autopilot.db",
@@ -147,40 +171,40 @@ class Config(BaseSettings):
         le=100000,
     )
 
-    # === Cost Configuration (for gpt-5-mini default pricing) ===
+    # === Cost & Pricing Configuration ===
     prompt_token_price_per_million: float = Field(
         default=0.15,
-        description="Price per 1M input tokens in USD (gpt-5-mini: $0.15)",
+        description="Cost per 1M prompt tokens (USD)",
         ge=0.0,
     )
 
     completion_token_price_per_million: float = Field(
         default=0.60,
-        description="Price per 1M output tokens in USD (gpt-5-mini: $0.60)",
+        description="Cost per 1M completion tokens (USD)",
         ge=0.0,
     )
 
     cached_token_price_per_million: float = Field(
         default=0.075,
-        description="Price per 1M cached tokens in USD (50% discount)",
+        description="Cost per 1M cached tokens (USD, 50% discount)",
         ge=0.0,
     )
 
     cost_alert_threshold_1: float = Field(
-        default=10.0,
-        description="First cost alert threshold in USD (info level)",
+        default=10.00,
+        description="First cost alert threshold (USD)",
         ge=0.0,
     )
 
     cost_alert_threshold_2: float = Field(
-        default=50.0,
-        description="Second cost alert threshold in USD (warning level)",
+        default=50.00,
+        description="Second cost alert threshold (USD)",
         ge=0.0,
     )
 
     cost_alert_threshold_3: float = Field(
-        default=100.0,
-        description="Third cost alert threshold in USD (critical level)",
+        default=100.00,
+        description="Third cost alert threshold (USD)",
         ge=0.0,
     )
 
