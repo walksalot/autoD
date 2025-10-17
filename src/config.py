@@ -147,6 +147,43 @@ class Config(BaseSettings):
         le=100000,
     )
 
+    # === Cost Configuration (for gpt-5-mini default pricing) ===
+    prompt_token_price_per_million: float = Field(
+        default=0.15,
+        description="Price per 1M input tokens in USD (gpt-5-mini: $0.15)",
+        ge=0.0,
+    )
+
+    completion_token_price_per_million: float = Field(
+        default=0.60,
+        description="Price per 1M output tokens in USD (gpt-5-mini: $0.60)",
+        ge=0.0,
+    )
+
+    cached_token_price_per_million: float = Field(
+        default=0.075,
+        description="Price per 1M cached tokens in USD (50% discount)",
+        ge=0.0,
+    )
+
+    cost_alert_threshold_1: float = Field(
+        default=10.0,
+        description="First cost alert threshold in USD (info level)",
+        ge=0.0,
+    )
+
+    cost_alert_threshold_2: float = Field(
+        default=50.0,
+        description="Second cost alert threshold in USD (warning level)",
+        ge=0.0,
+    )
+
+    cost_alert_threshold_3: float = Field(
+        default=100.0,
+        description="Third cost alert threshold in USD (critical level)",
+        ge=0.0,
+    )
+
     # === Processing Configuration ===
     batch_size: int = Field(
         default=10,
