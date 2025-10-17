@@ -191,47 +191,33 @@ def process_document(
             if alert:
                 logger.warning(alert, extra={"correlation_id": correlation_id})
 
-            # Step 8: Create Document record
+            # Step 8: Create Document record (simplified 10-field schema)
             logger.info("Saving to database", extra={"correlation_id": correlation_id})
+
+            # Enrich metadata with processing details before storing
+            enriched_metadata = {
+                **metadata,  # All extracted fields from API response
+                "_processing": {
+                    "model_used": get_config().openai_model,
+                    "prompt_tokens": usage["prompt_tokens"],
+                    "completion_tokens": usage["completion_tokens"],
+                    "cached_tokens": usage["cached_tokens"],
+                    "total_cost_usd": cost_data["total_cost"],
+                    "processing_duration_seconds": time.time() - start_time,
+                    "processed_at": datetime.now().isoformat(),
+                },
+                "_raw_response": response,  # Full API response for debugging
+            }
+
             doc = Document(
                 sha256_hex=hex_hash,
                 sha256_base64=b64_hash,
                 original_filename=file_path.name,
                 file_size_bytes=file_size,
-                page_count=metadata.get("page_count"),
-                doc_type=metadata.get("doc_type"),
-                doc_subtype=metadata.get("doc_subtype"),
-                confidence_score=metadata.get("confidence_score"),
-                issuer=metadata.get("issuer"),
-                recipient=metadata.get("recipient"),
-                primary_date=(
-                    datetime.strptime(metadata["primary_date"], "%Y-%m-%d").date()
-                    if metadata.get("primary_date")
-                    else None
-                ),
-                secondary_date=(
-                    datetime.strptime(metadata["secondary_date"], "%Y-%m-%d").date()
-                    if metadata.get("secondary_date")
-                    else None
-                ),
-                total_amount=metadata.get("total_amount"),
-                currency=metadata.get("currency"),
-                summary=metadata.get("summary"),
-                action_items={"items": metadata.get("action_items", [])},
-                deadlines={"deadlines": metadata.get("deadlines", [])},
-                urgency_level=metadata.get("urgency_level"),
-                tags={"tags": metadata.get("tags", [])},
-                ocr_text_excerpt=metadata.get("ocr_text_excerpt"),
-                language_detected=metadata.get("language_detected"),
-                extraction_quality=metadata.get("extraction_quality"),
-                requires_review=metadata.get("requires_review", False),
-                model_used=get_config().openai_model,
-                prompt_tokens=usage["prompt_tokens"],
-                completion_tokens=usage["completion_tokens"],
-                cached_tokens=usage["cached_tokens"],
-                total_cost_usd=cost_data["total_cost"],
-                processing_duration_seconds=time.time() - start_time,
-                raw_response_json=response,  # Store full response for debugging
+                source_file_id=None,  # Will be set when uploaded to vector store
+                metadata_json=enriched_metadata,  # All extracted data in JSON blob
+                status="completed",
+                processed_at=datetime.now(),
             )
 
             session.add(doc)
@@ -255,7 +241,6 @@ def process_document(
 
                 if file_id:
                     doc.vector_store_file_id = file_id
-                    doc.vector_store_attributes = metadata_attrs
                     session.commit()
                     logger.info(
                         f"Vector store file ID: {file_id}",
