@@ -19,7 +19,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 
 try:
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 
     HAS_PYPDF2 = True
 except ImportError:
@@ -94,8 +94,8 @@ class PDFTokenEstimator(FileTokenEstimator):
         """Initialize PDF estimator."""
         if not HAS_PYPDF2:
             raise ConfigurationError(
-                "PyPDF2 is required for PDF token estimation. "
-                "Install it with: pip install PyPDF2>=3.0.0"
+                "pypdf is required for PDF token estimation. "
+                "Install it with: pip install pypdf>=4.0.0"
             )
 
     def estimate(
@@ -164,7 +164,7 @@ class PDFTokenEstimator(FileTokenEstimator):
         return filename.lower().endswith(".pdf")
 
     def _count_pages_from_file(self, file_path: Path) -> int | None:
-        """Count pages in a PDF file using PyPDF2.
+        """Count pages in a PDF file using pypdf.
 
         Args:
             file_path: Path to PDF file
@@ -209,7 +209,7 @@ class PDFTokenEstimator(FileTokenEstimator):
         return estimated_pages
 
     def _count_pages_from_base64(self, file_data: str) -> int | None:
-        """Try to count pages from base64 PDF data using PyPDF2.
+        """Try to count pages from base64 PDF data using pypdf.
 
         Args:
             file_data: Base64-encoded PDF
@@ -222,7 +222,7 @@ class PDFTokenEstimator(FileTokenEstimator):
             if "base64," in file_data:
                 file_data = file_data.split("base64,")[1]
 
-            # Decode and read with PyPDF2
+            # Decode and read with pypdf
             pdf_bytes = base64.b64decode(file_data)
             pdf_stream = io.BytesIO(pdf_bytes)
             reader = PdfReader(pdf_stream)
@@ -253,7 +253,7 @@ def get_file_estimator(filename: str) -> FileTokenEstimator | None:
         if pdf_estimator.supports_file_type(filename):
             return pdf_estimator
     except ConfigurationError:
-        # PyPDF2 not available
+        # pypdf not available
         pass
 
     # Add more estimators here in the future:

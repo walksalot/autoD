@@ -353,7 +353,7 @@ def get_config() -> Config:
     """
     global _config
     if _config is None:
-        _config = Config()
+        _config = Config()  # type: ignore[call-arg]
     return _config
 
 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
         del os.environ["OPENAI_API_KEY"]
 
     try:
-        config = Config()
+        config = Config()  # type: ignore[call-arg]
         print("❌ FAIL: Should have raised ValidationError")
         print("   Issue: Config loaded without required OPENAI_API_KEY")
     except Exception as e:
@@ -417,7 +417,7 @@ if __name__ == "__main__":
     reset_config()
 
     try:
-        config = Config()
+        config = Config()  # type: ignore[call-arg]
         print("✅ PASS: Config loaded successfully")
         print(f"   Model: {config.openai_model}")
         print(f"   Environment: {config.environment}")
@@ -439,7 +439,7 @@ if __name__ == "__main__":
     reset_config()
 
     try:
-        config = Config()
+        config = Config()  # type: ignore[call-arg]
         print("❌ FAIL: Should have rejected gpt-4o")
         print("   Issue: gpt-4o is explicitly forbidden per project requirements")
     except Exception as e:
@@ -453,7 +453,7 @@ if __name__ == "__main__":
     print("-" * 70)
     os.environ["OPENAI_MODEL"] = "gpt-5-mini"  # Valid model
     reset_config()
-    config = Config()
+    config = Config()  # type: ignore[call-arg]
 
     try:
         config.openai_model = "gpt-4o"  # Try to modify
@@ -502,7 +502,7 @@ if __name__ == "__main__":
     reset_config()
 
     try:
-        config = Config()
+        config = Config()  # type: ignore[call-arg]
         print("❌ FAIL: Should reject timeout > 600")
     except Exception as e:
         print("✅ PASS: Rejected invalid timeout")
