@@ -9,10 +9,9 @@ These tests verify end-to-end error recovery scenarios including:
 """
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from sqlalchemy import create_engine, Column, Integer, String
 from sqlalchemy.orm import Session, declarative_base
-from datetime import datetime
 
 from src.transactions import (
     CompensatingTransaction,
@@ -99,8 +98,10 @@ class TestErrorRecoveryFilesAPI:
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("Database connection lost")
+
         db_session.commit = failing_commit
 
         try:
@@ -146,14 +147,14 @@ class TestErrorRecoveryFilesAPI:
         audit = {}
 
         # Make Files API delete fail
-        mock_openai_client.files.delete.side_effect = Exception(
-            "Files API unavailable"
-        )
+        mock_openai_client.files.delete.side_effect = Exception("Files API unavailable")
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("Database connection lost")
+
         db_session.commit = failing_commit
 
         try:
@@ -284,8 +285,10 @@ class TestErrorRecoveryVectorStore:
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("Database deadlock")
+
         db_session.commit = failing_commit
 
         try:
@@ -346,7 +349,7 @@ class TestErrorRecoveryVectorStore:
         handlers = audit["compensation_handlers"]
         assert len(handlers) == 2
         assert handlers[0]["resource_type"] == "vector_store"  # First
-        assert handlers[1]["resource_type"] == "files_api"     # Second
+        assert handlers[1]["resource_type"] == "files_api"  # Second
 
 
 class TestErrorRecoveryCriticalVsNonCritical:
@@ -361,9 +364,7 @@ class TestErrorRecoveryCriticalVsNonCritical:
         yield session
         session.close()
 
-    def test_non_critical_handler_failure_allows_graceful_degradation(
-        self, db_session
-    ):
+    def test_non_critical_handler_failure_allows_graceful_degradation(self, db_session):
         """Test that non-critical handler failures don't stop execution."""
         audit = {}
 
@@ -374,8 +375,10 @@ class TestErrorRecoveryCriticalVsNonCritical:
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("Network timeout")
+
         db_session.commit = failing_commit
 
         try:
@@ -415,8 +418,10 @@ class TestErrorRecoveryCriticalVsNonCritical:
         # Verify graceful degradation
         assert audit["compensation_status"] == "partial_failure"
         assert audit["compensation_stats"]["total"] == 3
-        assert audit["compensation_stats"]["successful"] == 2  # critical + 1 non-critical
-        assert audit["compensation_stats"]["failed"] == 1      # 1 non-critical
+        assert (
+            audit["compensation_stats"]["successful"] == 2
+        )  # critical + 1 non-critical
+        assert audit["compensation_stats"]["failed"] == 1  # 1 non-critical
 
         # Verify all handlers attempted (LIFO order)
         assert non_critical_handler_2.called
@@ -431,8 +436,10 @@ class TestErrorRecoveryCriticalVsNonCritical:
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("DB error")
+
         db_session.commit = failing_commit
 
         try:
@@ -475,8 +482,10 @@ class TestErrorRecoveryAuditTrail:
 
         # Patch commit to fail
         original_commit = db_session.commit
+
         def failing_commit():
             raise RuntimeError("Commit failed")
+
         db_session.commit = failing_commit
 
         try:

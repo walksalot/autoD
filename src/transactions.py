@@ -18,7 +18,7 @@ import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 from typing import Optional, Callable, Dict, Any, List
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -491,16 +491,12 @@ def create_vector_store_rollback_handler(
     """
 
     def cleanup():
-        logger.info(
-            f"Removing file {file_id} from vector store {vector_store_id}"
-        )
+        logger.info(f"Removing file {file_id} from vector store {vector_store_id}")
         try:
             client.beta.vector_stores.files.delete(
                 vector_store_id=vector_store_id, file_id=file_id
             )
-            logger.info(
-                f"Successfully removed file {file_id} from vector store"
-            )
+            logger.info(f"Successfully removed file {file_id} from vector store")
         except Exception as e:
             logger.error(
                 f"Failed to remove file {file_id} from vector store: {e}",
