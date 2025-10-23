@@ -145,9 +145,10 @@ class TestEmbeddingGenerator:
         assert gen.model == EMBEDDING_MODEL
         assert gen.dimensions == EMBEDDING_DIMENSIONS
         assert gen.max_cache_size == 1000  # Default
-        assert gen._cache == {}
-        assert gen._cache_order == []
-        assert gen.memory_cache_hits == 0
+        # Cache is now LRUCache object, check metrics instead
+        cache_metrics = gen._cache.get_metrics()
+        assert cache_metrics["entries"] == 0
+        assert cache_metrics["hits"] == 0
         assert gen.db_cache_hits == 0
         assert gen.api_calls == 0
         assert gen.total_tokens == 0
@@ -232,7 +233,7 @@ class TestEmbeddingGenerator:
         key2 = generator._compute_cache_key(text)
 
         assert key1 == key2
-        assert len(key1) == 64  # SHA-256 hex length
+        assert len(key1) == 16  # From generate_cache_key() - 16-char hex
 
     def test_compute_cache_key_includes_model(self, generator):
         """Test cache key includes model name for model upgrades."""
@@ -275,7 +276,8 @@ class TestEmbeddingGenerator:
         assert result is not None
         assert result.embedding == sample_embedding
         assert result.cached is True
-        assert generator.memory_cache_hits == 1
+        # Memory cache hits tracked by LRUCache
+        assert generator._cache.get_metrics()["hits"] == 1
 
     def test_cache_lru_eviction(self, generator, sample_embedding):
         """Test LRU eviction when cache is full."""
@@ -291,8 +293,9 @@ class TestEmbeddingGenerator:
             )
             generator._add_to_cache(key, result)
 
-        assert len(generator._cache) == 10
-        assert "key_0" in generator._cache
+        # Check cache is at max capacity
+        assert generator._cache.get_metrics()["entries"] == 10
+        assert generator._cache.get("key_0") is not None  # Oldest entry present
 
         # Add one more - should evict oldest (key_0)
         new_key = "key_new"
@@ -305,14 +308,16 @@ class TestEmbeddingGenerator:
         )
         generator._add_to_cache(new_key, new_result)
 
-        assert len(generator._cache) == 10
-        assert "key_0" not in generator._cache  # Evicted
-        assert new_key in generator._cache
+        # Cache should still be at max, oldest evicted
+        assert generator._cache.get_metrics()["entries"] == 10
+        assert generator._cache.get_metrics()["evictions"] >= 1
+        assert generator._cache.get("key_0") is None  # Evicted
+        assert generator._cache.get(new_key) is not None  # Present
 
     def test_cache_lru_update_on_access(self, generator, sample_embedding):
         """Test accessing cache updates LRU order."""
-        # Add two items
-        for i in range(2):
+        # Fill cache to max capacity (10 items)
+        for i in range(10):
             key = f"key_{i}"
             result = EmbeddingResult(
                 embedding=sample_embedding,
@@ -323,11 +328,24 @@ class TestEmbeddingGenerator:
             )
             generator._add_to_cache(key, result)
 
-        # Access key_0 to move it to end of LRU order
+        # Access key_0 to move it to end of LRU order (mark as recently used)
         generator._get_from_cache("key_0")
 
-        # Check LRU order (key_0 should be at end)
-        assert generator._cache_order == ["key_1", "key_0"]
+        # Add one more item - should evict key_1 (now oldest), not key_0
+        new_key = "key_new"
+        new_result = EmbeddingResult(
+            embedding=sample_embedding,
+            model=EMBEDDING_MODEL,
+            dimensions=EMBEDDING_DIMENSIONS,
+            input_tokens=100,
+            cache_key=new_key,
+        )
+        generator._add_to_cache(new_key, new_result)
+
+        # key_0 should NOT be evicted because we accessed it recently
+        assert generator._cache.get("key_0") is not None
+        # key_1 should be evicted (was oldest after key_0 access)
+        assert generator._cache.get("key_1") is None
 
     def test_generate_embedding_success(
         self, generator, sample_document, sample_embedding
@@ -374,7 +392,7 @@ class TestEmbeddingGenerator:
         result2 = generator.generate_embedding(sample_document)
         assert result2.cached is True
         assert result2.embedding == sample_embedding
-        assert generator.memory_cache_hits == 1
+        assert generator._cache.get_metrics()["hits"] == 1
 
         # API should only be called once
         assert generator.client.embeddings.create.call_count == 1
@@ -457,7 +475,7 @@ class TestEmbeddingGenerator:
 
         assert len(results) == 3
         assert all(r.embedding == sample_embedding for r in results)
-        assert generator.memory_cache_hits == 1  # First doc cached
+        assert generator._cache.get_metrics()["hits"] == 1  # First doc cached
         assert generator.api_calls == 2  # Other 2 docs
 
         # API should be called once for 2 uncached docs
@@ -509,7 +527,7 @@ class TestEmbeddingGenerator:
         assert generator.client.embeddings.create.call_count == 2
 
     def test_get_cache_stats_legacy(self, generator, sample_embedding):
-        """Test cache statistics reporting (legacy test updated for 3-tier)."""
+        """Test cache statistics reporting with production cache."""
         # Generate some cache activity
         cache_key = "test_key"
         result = EmbeddingResult(
@@ -526,20 +544,22 @@ class TestEmbeddingGenerator:
 
         stats = generator.get_cache_stats()
 
-        assert stats["cache_size"] == 1
-        assert stats["max_cache_size"] == 10
-        assert stats["memory_cache_hits"] == 1
-        assert stats["total_cache_hits"] == 1
+        # Check structure includes production cache metrics
+        assert "cache_metrics" in stats
+        assert stats["cache_metrics"]["entries"] == 1
+        assert stats["cache_metrics"]["hits"] == 1
+        assert stats["total_cache_hits"] == 1  # memory + db
         assert stats["api_calls"] == 1
         assert stats["overall_hit_rate"] == 0.5  # 1 hit / 2 requests
         assert stats["total_tokens"] == 0  # No tokens tracked
 
     def test_get_cache_stats_empty_cache_legacy(self, generator):
-        """Test cache stats with no cache activity (legacy test updated)."""
+        """Test cache stats with no cache activity."""
         stats = generator.get_cache_stats()
 
-        assert stats["cache_size"] == 0
-        assert stats["memory_cache_hits"] == 0
+        assert "cache_metrics" in stats
+        assert stats["cache_metrics"]["entries"] == 0
+        assert stats["cache_metrics"]["hits"] == 0
         assert stats["db_cache_hits"] == 0
         assert stats["overall_hit_rate"] == 0.0
 
@@ -563,9 +583,10 @@ class TestEmbeddingGenerator:
         # Clear cache
         generator.clear_cache()
 
-        assert generator._cache == {}
-        assert generator._cache_order == []
-        assert generator.memory_cache_hits == 0
+        # Check production cache is cleared
+        assert generator._cache.get_metrics()["entries"] == 0
+        assert generator._cache.get_metrics()["hits"] == 0
+        # EmbeddingGenerator stats reset
         assert generator.db_cache_hits == 0
         assert generator.api_calls == 0
         assert generator.total_tokens == 0

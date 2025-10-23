@@ -1,8 +1,13 @@
 """
-Embedding cache optimization module with LRU eviction and metrics.
+Generic cache module with LRU eviction and metrics.
 
 Provides deterministic cache key generation, cache metrics tracking,
-and LRU eviction policy for embedding storage.
+and LRU eviction policy. Supports generic types via CacheProtocol.
+
+Wave 2 + Phase 2 Enhancement:
+- Generic LRUCache[T] supporting any type
+- CacheProtocol interface for type safety
+- Backward compatible EmbeddingCache alias
 """
 
 import hashlib
@@ -10,9 +15,42 @@ import logging
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, TypeVar, Generic, Protocol
 
 logger = logging.getLogger(__name__)
+
+# Generic type variable for cache values
+T = TypeVar("T")
+
+
+class CacheProtocol(Protocol[T]):
+    """
+    Generic cache interface for type-safe cache operations.
+
+    Supports any value type T through Python's Protocol (structural subtyping).
+
+    Example:
+        def use_cache(cache: CacheProtocol[List[float]]) -> None:
+            embedding = cache.get("key123")
+            if embedding:
+                print(f"Found embedding: {len(embedding)} dimensions")
+    """
+
+    def get(self, key: str) -> Optional[T]:
+        """Retrieve value from cache."""
+        ...
+
+    def set(self, key: str, value: T) -> None:
+        """Store value in cache."""
+        ...
+
+    def clear(self) -> None:
+        """Clear all cache entries."""
+        ...
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get cache performance metrics."""
+        ...
 
 
 @dataclass
@@ -100,8 +138,29 @@ class CacheMetrics:
         }
 
 
-class EmbeddingCache:
-    """Thread-safe embedding cache with metrics and LRU eviction."""
+class LRUCache(Generic[T]):
+    """
+    Generic LRU cache with metrics and automatic eviction.
+
+    Supports any value type T through generics. Implements CacheProtocol[T]
+    for type safety.
+
+    Features:
+    - Type-safe generic interface
+    - LRU eviction policy
+    - Metrics tracking (hits, misses, evictions)
+    - Memory limit enforcement
+
+    Example:
+        # Cache for embeddings
+        embedding_cache = LRUCache[List[float]](max_entries=1000)
+        embedding_cache.set("key1", [0.1, 0.2, 0.3])
+        result = embedding_cache.get("key1")  # Type: Optional[List[float]]
+
+        # Cache for any type
+        from src.embeddings import EmbeddingResult
+        result_cache = LRUCache[EmbeddingResult](max_entries=500)
+    """
 
     def __init__(
         self,
@@ -109,28 +168,28 @@ class EmbeddingCache:
         max_size_bytes: int = 100 * 1024 * 1024,
     ) -> None:
         """
-        Initialize embedding cache.
+        Initialize LRU cache.
 
         Args:
             max_entries: Maximum number of cache entries
             max_size_bytes: Maximum cache size in bytes (default 100MB)
         """
-        self._cache: Dict[str, List[float]] = {}
+        self._cache: Dict[str, T] = {}
         self._access_order: List[str] = []  # For LRU tracking
         self.metrics = CacheMetrics(
             max_entries=max_entries,
             max_size_bytes=max_size_bytes,
         )
 
-    def get(self, key: str) -> Optional[List[float]]:
+    def get(self, key: str) -> Optional[T]:
         """
-        Retrieve embedding from cache.
+        Retrieve value from cache.
 
         Args:
             key: Cache key
 
         Returns:
-            Embedding vector if found, None otherwise
+            Cached value if found, None otherwise
         """
         if key in self._cache:
             self.metrics.hits += 1
@@ -143,28 +202,34 @@ class EmbeddingCache:
             logger.debug(f"Cache miss: {key}")
             return None
 
-    def set(self, key: str, embedding: List[float]) -> None:
+    def set(self, key: str, value: T) -> None:
         """
-        Store embedding in cache with LRU eviction.
+        Store value in cache with LRU eviction.
 
         Args:
             key: Cache key
-            embedding: Embedding vector
+            value: Value to cache
         """
-        embedding_size = len(embedding) * 8  # 8 bytes per float64
+        # Estimate size (rough approximation)
+        # For List[float]: len * 8 bytes
+        # For other types: use a conservative estimate
+        if isinstance(value, list):
+            value_size = len(value) * 8  # type: ignore
+        else:
+            value_size = 1024  # Conservative 1KB estimate
 
         # Evict if at capacity
         while (
             self.metrics.entries >= self.metrics.max_entries
-            or self.metrics.size_bytes + embedding_size > self.metrics.max_size_bytes
+            or self.metrics.size_bytes + value_size > self.metrics.max_size_bytes
         ):
             self._evict_lru()
 
-        self._cache[key] = embedding
+        self._cache[key] = value
         self._access_order.append(key)
         self.metrics.entries += 1
-        self.metrics.size_bytes += embedding_size
-        logger.debug(f"Cache set: {key} ({embedding_size} bytes)")
+        self.metrics.size_bytes += value_size
+        logger.debug(f"Cache set: {key} (~{value_size} bytes)")
 
     def _evict_lru(self) -> None:
         """Evict least recently used entry."""
@@ -172,12 +237,17 @@ class EmbeddingCache:
             return
 
         lru_key = self._access_order.pop(0)
-        embedding = self._cache.pop(lru_key)
-        embedding_size = len(embedding) * 8
+        value = self._cache.pop(lru_key)
+
+        # Estimate size for metrics update
+        if isinstance(value, list):
+            value_size = len(value) * 8  # type: ignore
+        else:
+            value_size = 1024
 
         self.metrics.evictions += 1
         self.metrics.entries -= 1
-        self.metrics.size_bytes -= embedding_size
+        self.metrics.size_bytes -= value_size
         logger.info(
             f"Cache eviction: {lru_key} ({self.metrics.hit_rate:.1f}% hit rate)"
         )
@@ -193,6 +263,10 @@ class EmbeddingCache:
     def get_metrics(self) -> Dict[str, Any]:
         """Export current metrics."""
         return self.metrics.to_dict()
+
+
+# Backward compatibility alias
+EmbeddingCache = LRUCache[List[float]]
 
 
 def log_cache_metrics(cache: EmbeddingCache) -> None:

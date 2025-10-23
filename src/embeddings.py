@@ -41,6 +41,7 @@ from sqlalchemy.orm import Session
 
 from src.retry_logic import retry
 from src.models import Document
+from src.cache import LRUCache, generate_cache_key
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +78,16 @@ class EmbeddingGenerator:
     Features:
     - Extracts searchable text from Document.metadata_json
     - Generates embeddings via text-embedding-3-small (1536d)
-    - In-memory LRU cache for hot embeddings
+    - Production LRU cache (src.cache.LRUCache[EmbeddingResult])
     - SHA-256-based cache keys for deterministic lookup
     - Retry logic for transient API errors
     - Batch generation for efficiency
 
-    Cache Strategy:
-    - Cache key: SHA-256(model + text content)
-    - In-memory: LRU cache (1000 embeddings max)
-    - Database: embeddings table (future enhancement)
-    - TTL: None (embeddings are immutable for given text)
+    Cache Strategy (2-tier):
+    - Tier 1 (Memory): Production LRUCache with automatic eviction
+    - Tier 2 (Database): embeddings table with TTL validation
+    - Cache key: 16-character hex from generate_cache_key()
+    - TTL: Configurable per vector_cache_ttl_days
 
     Cost Tracking:
     - text-embedding-3-small: $0.00002/1K tokens
@@ -117,12 +118,10 @@ class EmbeddingGenerator:
         self.dimensions = dimensions
         self.max_cache_size = max_cache_size
 
-        # In-memory LRU cache: {cache_key: EmbeddingResult}
-        self._cache: Dict[str, EmbeddingResult] = {}
-        self._cache_order: List[str] = []  # For LRU eviction
+        # Production LRU cache (from src.cache)
+        self._cache = LRUCache[EmbeddingResult](max_entries=max_cache_size)
 
-        # Statistics (3-tier cache)
-        self.memory_cache_hits = 0
+        # Statistics (2-tier cache: memory + DB)
         self.db_cache_hits = 0
         self.api_calls = 0
         self.total_tokens = 0
@@ -134,7 +133,7 @@ class EmbeddingGenerator:
         )
 
     def _compute_cache_key(self, text: str) -> str:
-        """Compute SHA-256 cache key for deterministic lookup.
+        """Compute SHA-256 cache key using production cache function.
 
         Cache key includes model name to handle model upgrades.
 
@@ -142,49 +141,36 @@ class EmbeddingGenerator:
             text: Input text to embed
 
         Returns:
-            64-character hex SHA-256 hash
+            16-character hex cache key (from generate_cache_key)
         """
-        cache_input = f"{self.model}:{text}"
-        return hashlib.sha256(cache_input.encode("utf-8")).hexdigest()
+        doc_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        return generate_cache_key(
+            doc_hash=doc_hash, model=self.model, schema_version="v1"
+        )
 
     def _get_from_cache(self, cache_key: str) -> Optional[EmbeddingResult]:
-        """Retrieve embedding from in-memory cache (LRU).
+        """Retrieve embedding from production LRU cache.
 
         Args:
-            cache_key: SHA-256 hash of model + text
+            cache_key: 16-character hex cache key
 
         Returns:
             Cached EmbeddingResult if found, None otherwise
         """
-        if cache_key in self._cache:
-            # Move to end of LRU order (mark as recently used)
-            self._cache_order.remove(cache_key)
-            self._cache_order.append(cache_key)
-
-            result = self._cache[cache_key]
+        result = self._cache.get(cache_key)
+        if result:
             result.cached = True
-            self.memory_cache_hits += 1
-
             logger.debug(f"Memory cache hit for key {cache_key[:12]}...")
-            return result
-
-        return None
+        return result
 
     def _add_to_cache(self, cache_key: str, result: EmbeddingResult) -> None:
-        """Add embedding to in-memory cache with LRU eviction.
+        """Add embedding to production LRU cache.
 
         Args:
-            cache_key: SHA-256 hash of model + text
+            cache_key: 16-character hex cache key
             result: EmbeddingResult to cache
         """
-        # Evict oldest entry if cache is full
-        if len(self._cache) >= self.max_cache_size:
-            oldest_key = self._cache_order.pop(0)
-            del self._cache[oldest_key]
-            logger.debug(f"Evicted cache key {oldest_key[:12]}... (LRU)")
-
-        self._cache[cache_key] = result
-        self._cache_order.append(cache_key)
+        self._cache.set(cache_key, result)
         logger.debug(f"Cached embedding for key {cache_key[:12]}...")
 
     def _get_from_db_cache(self, doc: Document) -> Optional[EmbeddingResult]:
@@ -512,65 +498,58 @@ class EmbeddingGenerator:
         assert all(r is not None for r in results), "Missing embeddings in results"
 
         # Calculate cache statistics
-        total_cache_hits = self.memory_cache_hits + self.db_cache_hits
+        cache_metrics = self._cache.get_metrics()
+        memory_cache_hits = cache_metrics["hits"]
+        total_cache_hits = memory_cache_hits + self.db_cache_hits
         cache_misses = len(texts_to_fetch)
         logger.info(
             f"Batch complete: {len(results)} embeddings, "
             f"{total_cache_hits} cache hits "
-            f"(memory: {self.memory_cache_hits}, db: {self.db_cache_hits}), "
+            f"(memory: {memory_cache_hits}, db: {self.db_cache_hits}), "
             f"{cache_misses} API calls"
         )
 
         return results  # type: ignore
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        """Get cache performance statistics.
+        """Get cache performance statistics from production cache.
 
         Returns:
-            Dictionary with 3-tier cache metrics:
-            - cache_size: Current number of in-memory cached embeddings
-            - max_cache_size: Maximum in-memory cache capacity
-            - memory_cache_hits: Tier 1 (memory) cache hits
+            Dictionary with 2-tier cache metrics:
+            - cache_metrics: Production cache metrics (hits, misses, evictions, etc.)
             - db_cache_hits: Tier 2 (database) cache hits
             - total_cache_hits: Combined cache hits (memory + DB)
             - api_calls: Tier 3 (API) calls (cache misses)
             - total_requests: Total embedding requests
-            - memory_hit_rate: Memory cache hit rate (0-1)
             - overall_hit_rate: Overall cache hit rate (0-1)
             - total_tokens: Total tokens processed by API
         """
-        total_cache_hits = self.memory_cache_hits + self.db_cache_hits
+        cache_metrics = self._cache.get_metrics()
+        memory_cache_hits = cache_metrics["hits"]
+        total_cache_hits = memory_cache_hits + self.db_cache_hits
         total_requests = total_cache_hits + self.api_calls
 
-        memory_hit_rate = (
-            self.memory_cache_hits / total_requests if total_requests > 0 else 0.0
-        )
         overall_hit_rate = (
             total_cache_hits / total_requests if total_requests > 0 else 0.0
         )
 
         return {
-            "cache_size": len(self._cache),
-            "max_cache_size": self.max_cache_size,
-            "memory_cache_hits": self.memory_cache_hits,
+            "cache_metrics": cache_metrics,  # Production cache stats
             "db_cache_hits": self.db_cache_hits,
             "total_cache_hits": total_cache_hits,
             "api_calls": self.api_calls,
             "total_requests": total_requests,
-            "memory_hit_rate": memory_hit_rate,
             "overall_hit_rate": overall_hit_rate,
             "total_tokens": self.total_tokens,
         }
 
     def clear_cache(self) -> None:
-        """Clear in-memory cache and reset statistics.
+        """Clear production cache and reset statistics.
 
         Note: This only clears the in-memory cache (Tier 1).
         Database cache (Tier 2) remains intact.
         """
         self._cache.clear()
-        self._cache_order.clear()
-        self.memory_cache_hits = 0
         self.db_cache_hits = 0
         self.api_calls = 0
         self.total_tokens = 0
