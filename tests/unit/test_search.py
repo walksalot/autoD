@@ -94,7 +94,7 @@ def sample_documents():
             "primary_date": "2024-01-15",
             "summary": "Monthly consulting services invoice",
         },
-        embedding_vector=[0.9, 0.1] + [0.0] * 1534,
+        embedding_vector={"embedding": [0.9, 0.1] + [0.0] * 1534},
         embedding_cache_key="key1",
         embedding_model="text-embedding-3-small",
         embedding_generated_at=datetime.now(timezone.utc),
@@ -113,7 +113,7 @@ def sample_documents():
             "primary_date": "2024-01-20",
             "summary": "Coffee and pastries",
         },
-        embedding_vector=[0.85, 0.15] + [0.0] * 1534,
+        embedding_vector={"embedding": [0.85, 0.15] + [0.0] * 1534},
         embedding_cache_key="key2",
         embedding_model="text-embedding-3-small",
         embedding_generated_at=datetime.now(timezone.utc),
@@ -132,7 +132,7 @@ def sample_documents():
             "primary_date": "2024-03-01",
             "summary": "Account summary and transactions",
         },
-        embedding_vector=[0.1, 0.9] + [0.0] * 1534,
+        embedding_vector={"embedding": [0.1, 0.9] + [0.0] * 1534},
         embedding_cache_key="key3",
         embedding_model="text-embedding-3-small",
         embedding_generated_at=datetime.now(timezone.utc),
@@ -151,7 +151,7 @@ def sample_documents():
             "primary_date": "2024-02-10",
             "summary": "Software licensing fees",
         },
-        embedding_vector=[0.7, 0.3] + [0.0] * 1534,
+        embedding_vector={"embedding": [0.7, 0.3] + [0.0] * 1534},
         embedding_cache_key="key4",
         embedding_model="text-embedding-3-small",
         embedding_generated_at=datetime.now(timezone.utc),
@@ -1000,7 +1000,7 @@ class TestSearchByDocument:
         # Use doc1 as source, but make it very dissimilar to others
         source_doc = sample_documents[0]
         # Create a very different embedding for source
-        source_doc.embedding_vector = [0.0, 0.0] + [1.0] * 1534
+        source_doc.embedding_vector = {"embedding": [0.0, 0.0] + [1.0] * 1534}
 
         query_mock = Mock()
         query_mock.filter = Mock(return_value=query_mock)
@@ -1131,7 +1131,7 @@ class TestPerformance:
                 sha256_hex=f"{i:064d}",
                 original_filename=f"doc{i}.pdf",
                 metadata_json={"doc_type": "Invoice", "issuer": f"Company {i}"},
-                embedding_vector=[0.5] * 1536,
+                embedding_vector={"embedding": [0.5] * 1536},
                 status="completed",
             )
             for i in range(num_docs)
