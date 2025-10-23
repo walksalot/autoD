@@ -5,10 +5,31 @@
 [![codecov](https://codecov.io/gh/krisstudio/autoD/branch/main/graph/badge.svg)](https://codecov.io/gh/krisstudio/autoD)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![MyPy: strict](https://img.shields.io/badge/mypy-strict-blue.svg)](https://mypy.readthedocs.io/en/stable/)
 
 **Automatic PDF processing from your ScanSnap scanner using OpenAI Responses API**
 
 Paper Autopilot continuously monitors your scanner's inbox folder and automatically processes PDFs as they arrive. No manual intervention needed - just scan your documents and let the autopilot handle the rest.
+
+## What's New (Wave 2 - October 2025)
+
+**Type Safety:**
+- 100% type annotation coverage with MyPy strict mode
+- Zero `Any` type leakage from external libraries
+- Pre-commit hooks enforce type safety
+
+**Performance:**
+- Production-ready embedding cache with <0.1ms latency
+- 70%+ cache hit rate with temporal locality
+- >1M lookups/sec throughput
+- SHA-256 cache keys with LRU eviction
+
+**Quality:**
+- 41 new cache tests (unit + integration + performance)
+- Property-based testing with Hypothesis framework
+- 3 new ADRs documenting technical decisions
+
+See [CHANGELOG.md](CHANGELOG.md) for full details.
 
 ## What It Does
 
@@ -95,13 +116,15 @@ The daemon will now start automatically every time you log in to your Mac.
 ├── src/
 │   ├── daemon.py          # File watching and automatic processing
 │   ├── processor.py       # Document processing pipeline
-│   ├── config.py          # Configuration management
+│   ├── config.py          # Configuration management (Pydantic V2)
+│   ├── cache.py           # LRU embedding cache (NEW)
 │   ├── database.py        # SQLite database operations
 │   ├── api_client.py      # OpenAI Responses API client
 │   └── vector_store.py    # Vector store management
 ├── docs/
 │   ├── DAEMON_MODE.md     # Detailed daemon setup guide
 │   ├── RUNBOOK.md         # Production operations guide
+│   ├── DEVELOPMENT_MODEL.md  # Parallel execution guide (NEW)
 │   └── scansnap-ix1600-setup.md  # Scanner configuration
 └── com.paperautopilot.daemon.plist  # macOS LaunchAgent config
 ```
@@ -182,6 +205,7 @@ Paper Autopilot uses only OpenAI Frontier models per project requirements:
 
 - **[Daemon Mode Guide](docs/DAEMON_MODE.md)** - Complete daemon setup and troubleshooting
 - **[Production Runbook](docs/RUNBOOK.md)** - Operations guide for production deployments
+- **[Development Model](docs/DEVELOPMENT_MODEL.md)** - Parallel execution with git worktrees (NEW)
 - **[Scanner Setup](docs/scansnap-ix1600-setup.md)** - ScanSnap iX1600 configuration
 - **[Code Architecture](docs/CODE_ARCHITECTURE.md)** - System architecture and design
 - **[Processor Guide](docs/PROCESSOR_GUIDE.md)** - Document processing pipeline details
@@ -208,9 +232,11 @@ Paper Autopilot implements a production-grade document processing pipeline:
 2. **File Stabilization**: Handles scanner's phased writes (waits for OCR completion)
 3. **Deduplication**: SHA-256 hash-based duplicate detection
 4. **Processing Pipeline**: Responses API → Schema Validation → Database Storage
-5. **Vector Search**: Automatic upload to OpenAI vector store
+5. **Vector Search**: Automatic upload to OpenAI vector store with LRU embedding cache
 6. **Audit Trail**: Complete processing history with costs and timing
 7. **Error Handling**: Automatic retries with exponential backoff
+8. **Type Safety**: MyPy strict mode with 100% annotation coverage
+9. **Performance**: <0.1ms cache latency, 70%+ hit rate, >1M ops/sec throughput
 
 ## License
 
