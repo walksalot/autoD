@@ -191,7 +191,7 @@ def process_document(
             if alert:
                 logger.warning(alert, extra={"correlation_id": correlation_id})
 
-            # Step 8: Create Document record (simplified 10-field schema)
+            # Step 8: Create or update Document record (simplified 10-field schema)
             logger.info("Saving to database", extra={"correlation_id": correlation_id})
 
             # Enrich metadata with processing details before storing
@@ -209,20 +209,36 @@ def process_document(
                 "_raw_response": response,  # Full API response for debugging
             }
 
-            doc = Document(
-                sha256_hex=hex_hash,
-                sha256_base64=b64_hash,
-                original_filename=file_path.name,
-                file_size_bytes=file_size,
-                page_count=metadata.get("page_count"),  # Extract from API response
-                source_file_id=None,  # Will be set when uploaded to vector store
-                metadata_json=enriched_metadata,  # All extracted data in JSON blob
-                status="completed",
-                processed_at=datetime.now(),
-            )
-
-            session.add(doc)
-            session.commit()
+            # If duplicate exists and skip_duplicates=False, update existing record
+            if duplicate and not skip_duplicates:
+                logger.info(
+                    f"Updating existing document (ID: {duplicate.id}) with new processing results",
+                    extra={
+                        "correlation_id": correlation_id,
+                        "document_id": duplicate.id,
+                    },
+                )
+                duplicate.metadata_json = enriched_metadata
+                duplicate.status = "completed"
+                duplicate.processed_at = datetime.now()
+                duplicate.original_filename = file_path.name  # Update filename
+                duplicate.file_size_bytes = file_size
+                doc = duplicate  # Use existing document
+                session.commit()
+            else:
+                # No duplicate, create new document
+                doc = Document(
+                    sha256_hex=hex_hash,
+                    sha256_base64=b64_hash,
+                    original_filename=file_path.name,
+                    file_size_bytes=file_size,
+                    source_file_id=None,  # Will be set when uploaded to vector store
+                    metadata_json=enriched_metadata,  # All extracted data in JSON blob (includes page_count)
+                    status="completed",
+                    processed_at=datetime.now(),
+                )
+                session.add(doc)
+                session.commit()
 
             logger.info(
                 f"Document saved: ID {doc.id}",
