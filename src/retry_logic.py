@@ -22,6 +22,7 @@ Usage:
         print(f"Failed after 5 retries: {e}")
 """
 
+from typing import Any, Callable, TypeVar
 from tenacity import (
     retry as _tenacity_retry,
     stop_after_attempt,
@@ -33,6 +34,9 @@ from openai import RateLimitError, APIConnectionError, APIError, Timeout
 import logging
 
 logger = logging.getLogger(__name__)
+
+# Type variable for decorated function
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def is_retryable_api_error(exception: BaseException) -> bool:
@@ -82,7 +86,7 @@ def is_retryable_api_error(exception: BaseException) -> bool:
     if isinstance(exception, APIError):
         if hasattr(exception, "status_code"):
             status_code = exception.status_code
-            is_server_error = status_code >= 500
+            is_server_error: bool = bool(status_code >= 500)
             logger.info(f"API error {status_code}: retryable={is_server_error}")
             return is_server_error
         # Unknown API error - don't retry
@@ -109,7 +113,9 @@ def is_retryable_api_error(exception: BaseException) -> bool:
     return False
 
 
-def retry(*, max_attempts: int = 5, initial_wait: float = 2.0, max_wait: float = 60.0):
+def retry(
+    *, max_attempts: int = 5, initial_wait: float = 2.0, max_wait: float = 60.0
+) -> Callable[[F], F]:
     """
     Decorator that retries a function when `is_retryable_api_error` returns True.
 
@@ -119,7 +125,7 @@ def retry(*, max_attempts: int = 5, initial_wait: float = 2.0, max_wait: float =
         max_wait: Maximum wait between retries.
     """
 
-    def decorator(func):
+    def decorator(func: F) -> F:
         return _tenacity_retry(
             retry=retry_if_exception(is_retryable_api_error),
             stop=stop_after_attempt(max_attempts),
@@ -132,7 +138,7 @@ def retry(*, max_attempts: int = 5, initial_wait: float = 2.0, max_wait: float =
 
 
 @retry()
-def call_openai_with_retry(client, **kwargs):
+def call_openai_with_retry(client: Any, **kwargs: Any) -> Any:
     """
     Call OpenAI Responses API with exponential backoff retry.
 

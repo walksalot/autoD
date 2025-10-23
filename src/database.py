@@ -4,7 +4,7 @@ Provides context managers for safe database operations.
 """
 
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any, Generator
 from sqlalchemy import create_engine, event, Engine
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import StaticPool
@@ -41,7 +41,7 @@ class DatabaseManager:
 
             # Enable foreign keys for SQLite
             @event.listens_for(Engine, "connect")
-            def set_sqlite_pragma(dbapi_conn, connection_record):
+            def set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
                 cursor = dbapi_conn.cursor()
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()

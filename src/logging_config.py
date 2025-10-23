@@ -125,6 +125,7 @@ def setup_logging(
     file_handler.setLevel(getattr(logging, log_level.upper()))
 
     # Choose formatter
+    formatter: logging.Formatter
     if log_format == "json":
         formatter = JSONFormatter()
     else:
