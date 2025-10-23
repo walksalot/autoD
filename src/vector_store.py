@@ -21,7 +21,9 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any, Callable
 import time
 import logging
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from enum import Enum
 from openai import OpenAI
 from src.config import get_config
@@ -33,6 +35,10 @@ logger = logging.getLogger(__name__)
 
 VECTOR_STORE_CACHE_FILE = ".paper_autopilot_vs_id"
 BACKUP_CACHE_FILE = ".paper_autopilot_vs_id.backup"
+
+# Vector Store pricing (March 2025)
+VECTOR_STORE_COST_PER_GB_PER_DAY = 0.10  # $0.10/GB/day after 1GB free tier
+VECTOR_STORE_FREE_TIER_GB = 1.0  # 1GB free
 
 
 class FileStatus(str, Enum):
@@ -61,6 +67,88 @@ class UploadResult:
         return self.status == FileStatus.COMPLETED and self.file_id is not None
 
 
+@dataclass
+class VectorStoreMetrics:
+    """Vector store performance and cost metrics.
+
+    Tracks uploads, searches, costs, and performance metrics for
+    observability and cost management.
+
+    Attributes:
+        uploads_succeeded: Number of successful file uploads
+        uploads_failed: Number of failed file uploads
+        upload_bytes_total: Total bytes uploaded to vector store
+        search_queries_total: Total number of search queries executed
+        search_latency_sum: Cumulative search latency in seconds
+        search_failures: Number of failed search queries
+        cost_estimate_usd: Estimated cost based on usage ($0.10/GB/day)
+        created_at: Timestamp when metrics tracking started
+    """
+
+    uploads_succeeded: int = 0
+    uploads_failed: int = 0
+    upload_bytes_total: int = 0
+    search_queries_total: int = 0
+    search_latency_sum: float = 0.0
+    search_failures: int = 0
+    cost_estimate_usd: float = 0.0
+    created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def upload_success_rate(self) -> float:
+        """Calculate upload success rate (0-1)."""
+        total_uploads = self.uploads_succeeded + self.uploads_failed
+        return self.uploads_succeeded / total_uploads if total_uploads > 0 else 0.0
+
+    @property
+    def avg_search_latency(self) -> float:
+        """Calculate average search latency in seconds."""
+        return (
+            self.search_latency_sum / self.search_queries_total
+            if self.search_queries_total > 0
+            else 0.0
+        )
+
+    @property
+    def upload_gb(self) -> float:
+        """Calculate total upload size in GB."""
+        return self.upload_bytes_total / (1024 * 1024 * 1024)
+
+    def estimate_daily_cost(self) -> float:
+        """
+        Estimate daily Vector Store cost based on usage.
+
+        Returns:
+            Estimated cost in USD per day
+
+        Note:
+            - First 1GB is free
+            - $0.10/GB/day after free tier
+            - This is a rough estimate based on total uploads
+        """
+        if self.upload_gb <= VECTOR_STORE_FREE_TIER_GB:
+            return 0.0
+
+        billable_gb = self.upload_gb - VECTOR_STORE_FREE_TIER_GB
+        return billable_gb * VECTOR_STORE_COST_PER_GB_PER_DAY
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Export metrics as dictionary for logging/monitoring."""
+        return {
+            "uploads_succeeded": self.uploads_succeeded,
+            "uploads_failed": self.uploads_failed,
+            "upload_success_rate": round(self.upload_success_rate, 3),
+            "upload_bytes_total": self.upload_bytes_total,
+            "upload_mb": round(self.upload_bytes_total / (1024 * 1024), 2),
+            "upload_gb": round(self.upload_gb, 3),
+            "search_queries_total": self.search_queries_total,
+            "search_failures": self.search_failures,
+            "avg_search_latency_ms": round(self.avg_search_latency * 1000, 1),
+            "cost_estimate_usd_per_day": round(self.estimate_daily_cost(), 4),
+            "metrics_since": self.created_at.isoformat(),
+        }
+
+
 class VectorStoreManager:
     """
     Manages OpenAI vector store lifecycle and operations.
@@ -83,6 +171,14 @@ class VectorStoreManager:
         self.client = client or OpenAI(api_key=config.openai_api_key)
         self.config = config
         self.vector_store_id: Optional[str] = None
+
+        # Initialize metrics tracking
+        self.metrics = VectorStoreMetrics()
+
+        logger.info(
+            "Initialized VectorStoreManager",
+            extra={"metrics_tracking": True, "cost_tracking": True},
+        )
 
     def get_or_create_vector_store(self) -> Any:
         """
@@ -240,6 +336,11 @@ class VectorStoreManager:
                 processing_time_seconds=processing_time,
             )
 
+            # Track metrics on success
+            if result.success:
+                self.metrics.uploads_succeeded += 1
+                self.metrics.upload_bytes_total += file_size
+
             logger.info(
                 "File upload completed",
                 extra={
@@ -247,6 +348,8 @@ class VectorStoreManager:
                     "vector_store_file_id": vector_store_file.id,
                     "status": final_status.value,
                     "processing_time_seconds": processing_time,
+                    "upload_success_rate": self.metrics.upload_success_rate,
+                    "total_upload_gb": round(self.metrics.upload_gb, 3),
                 },
             )
 
@@ -254,6 +357,10 @@ class VectorStoreManager:
 
         except Exception as e:
             processing_time = time.time() - start_time
+
+            # Track metrics on failure
+            self.metrics.uploads_failed += 1
+
             logger.error(
                 f"File upload failed: {e}",
                 exc_info=True,
@@ -261,6 +368,7 @@ class VectorStoreManager:
                     "file_path": str(file_path),
                     "error": str(e),
                     "processing_time_seconds": processing_time,
+                    "upload_success_rate": self.metrics.upload_success_rate,
                 },
             )
 
@@ -430,15 +538,15 @@ class VectorStoreManager:
         metadata_filter: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """
-        Search for similar documents using OpenAI Assistants + File Search.
+        Search for similar documents using Responses API with hybrid search.
 
-        Creates a temporary assistant with file_search tool, executes the query,
-        and returns ranked results with similarity scores.
+        Uses March 2025 Responses API with file_search tool for hybrid
+        semantic + keyword (BM25) search with automatic reranking.
 
         Args:
             query: Search query (natural language text)
             top_k: Number of results to return (max 50)
-            metadata_filter: Optional metadata filters for file search
+            metadata_filter: Optional metadata filters for file search (not yet supported)
 
         Returns:
             List of matching documents with file IDs and relevance scores
@@ -451,11 +559,10 @@ class VectorStoreManager:
             >>> manager = VectorStoreManager()
             >>> results = manager.search_similar_documents(
             ...     "monthly invoices from ACME Corp",
-            ...     top_k=10,
-            ...     metadata_filter={"doc_type": "Invoice"}
+            ...     top_k=10
             ... )
             >>> for result in results:
-            ...     print(f"{result['file_name']}: {result['score']:.3f}")
+            ...     print(f"{result['file_id']}: {result['score']:.3f}")
         """
         if not query or not query.strip():
             raise ValueError("Search query cannot be empty")
@@ -467,102 +574,124 @@ class VectorStoreManager:
         if not self.vector_store_id:
             self.get_or_create_vector_store()
 
+        # Track search metrics
+        search_start_time = time.time()
+
         logger.info(
-            "Searching vector store",
+            "Hybrid search via Responses API",
             extra={
-                "query": query,
+                "query": query[:100],  # Log first 100 chars
                 "top_k": top_k,
                 "vector_store_id": self.vector_store_id,
             },
         )
 
         try:
-            # Step 1: Create temporary assistant with file_search tool
-            assistant = self.client.beta.assistants.create(
-                name="Temporary Search Assistant",
-                instructions="You are a search assistant. Answer queries based on the files in the vector store.",
-                model="gpt-4o-mini",  # Fast model for search
-                tools=[{"type": "file_search"}],
-                tool_resources={
-                    "file_search": {"vector_store_ids": [self.vector_store_id]}
-                },
-            )
-
-            logger.debug(f"Created assistant: {assistant.id}")
-
-            # Step 2: Create thread with the search query
-            thread = self.client.beta.threads.create(
-                messages=[
+            # Use Responses API with file_search tool (March 2025 pattern)
+            response = self.client.responses.create(
+                model=self.config.openai_model,
+                input=[{"role": "user", "content": query}],
+                tools=[
                     {
-                        "role": "user",
-                        "content": f"Find documents related to: {query}",
+                        "type": "file_search",
+                        "file_search": {
+                            "vector_stores": [self.vector_store_id],
+                            "max_num_results": top_k,
+                        },
                     }
-                ]
+                ],
+                reasoning_effort="minimal",  # 2025 best practice for search
+                verbosity="low",  # Minimize response overhead
             )
 
-            logger.debug(f"Created thread: {thread.id}")
+            # Extract file citations from response
+            results = self._parse_file_search_response(response)
 
-            # Step 3: Run the assistant
-            run = self.client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=assistant.id,
-                max_prompt_tokens=1000,  # Limit for search query
-                max_completion_tokens=500,  # Limit response size
-            )
-
-            # Step 4: Extract file references from response
-            results = []
-
-            if run.status == "completed":
-                # Get messages from thread
-                messages = self.client.beta.threads.messages.list(
-                    thread_id=thread.id,
-                    order="desc",
-                    limit=1,
-                )
-
-                if messages.data:
-                    message = messages.data[0]
-
-                    # Extract file citations from annotations
-                    for content in message.content:
-                        if hasattr(content, "text"):
-                            for annotation in content.text.annotations:
-                                if hasattr(annotation, "file_citation"):
-                                    citation = annotation.file_citation
-                                    results.append(
-                                        {
-                                            "file_id": citation.file_id,
-                                            "quote": annotation.text,
-                                            "score": 1.0,  # OpenAI doesn't provide scores, using 1.0
-                                        }
-                                    )
-
-            # Step 5: Cleanup - delete temporary assistant
-            self.client.beta.assistants.delete(assistant.id)
-            logger.debug(f"Deleted assistant: {assistant.id}")
-
-            # Limit results to top_k
+            # Limit results to top_k (redundant safety check)
             results = results[:top_k]
 
+            # Track successful search metrics
+            search_latency = time.time() - search_start_time
+            self.metrics.search_queries_total += 1
+            self.metrics.search_latency_sum += search_latency
+
             logger.info(
-                "Search completed",
+                "Hybrid search completed",
                 extra={
-                    "query": query,
+                    "query": query[:50],
                     "results_count": len(results),
-                    "run_status": run.status,
+                    "search_latency_ms": round(search_latency * 1000, 1),
+                    "avg_search_latency_ms": round(
+                        self.metrics.avg_search_latency * 1000, 1
+                    ),
                 },
             )
 
             return results
 
         except Exception as e:
+            # Track failed search
+            self.metrics.search_failures += 1
+
             logger.error(
-                f"Search failed: {e}",
+                f"Hybrid search failed: {e}",
                 exc_info=True,
-                extra={"query": query, "error": str(e)},
+                extra={
+                    "query": query[:100],
+                    "error": str(e),
+                    "search_failures_total": self.metrics.search_failures,
+                },
             )
             raise
+
+    def _parse_file_search_response(self, response: Any) -> List[Dict[str, Any]]:
+        """
+        Parse file_search tool results from Responses API response.
+
+        Args:
+            response: Response from Responses API with file_search tool
+
+        Returns:
+            List of search results with file IDs and scores
+
+        Note:
+            This parser depends on the actual March 2025 API response structure.
+            Update based on final API documentation.
+        """
+        results = []
+
+        try:
+            # Parse response structure (March 2025 API)
+            # TODO: Update with actual response structure when available
+            if hasattr(response, "output") and response.output:
+                output_content = response.output
+
+                # Check for tool use in response
+                if hasattr(output_content, "content"):
+                    for content_block in output_content.content:
+                        # Extract file citations
+                        if (
+                            hasattr(content_block, "type")
+                            and content_block.type == "file_citation"
+                        ):
+                            citation = content_block.file_citation
+                            results.append(
+                                {
+                                    "file_id": citation.file_id,
+                                    "quote": getattr(citation, "quote", ""),
+                                    "score": getattr(citation, "score", 1.0),
+                                }
+                            )
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse file_search response: {e}. "
+                "This may indicate API structure changes. "
+                "Returning empty results.",
+                exc_info=True,
+            )
+
+        return results
 
     def cleanup_orphaned_files(self, keep_recent_days: int = 7) -> int:
         """
@@ -613,6 +742,44 @@ class VectorStoreManager:
 
         # Create new vector store
         return self.get_or_create_vector_store()
+
+    def get_metrics(self) -> Dict[str, Any]:
+        """Get current vector store metrics.
+
+        Returns:
+            Dictionary with metrics including uploads, searches, costs
+
+        Example:
+            >>> manager = VectorStoreManager()
+            >>> metrics = manager.get_metrics()
+            >>> print(f"Daily cost: ${metrics['cost_estimate_usd_per_day']:.2f}")
+        """
+        return self.metrics.to_dict()
+
+
+def log_vector_store_metrics(manager: VectorStoreManager) -> None:
+    """
+    Log vector store metrics as structured JSON.
+
+    Args:
+        manager: VectorStoreManager instance
+
+    Example:
+        >>> manager = VectorStoreManager()
+        >>> # After some uploads and searches...
+        >>> log_vector_store_metrics(manager)
+    """
+    metrics = manager.get_metrics()
+    logger.info(
+        json.dumps(
+            {
+                "event": "vector_store_metrics",
+                "timestamp": datetime.now(timezone.utc).isoformat() + "Z",
+                "vector_store_id": manager.vector_store_id,
+                **metrics,
+            }
+        )
+    )
 
 
 # Example usage

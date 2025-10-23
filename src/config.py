@@ -260,6 +260,11 @@ class Config(BaseSettings):
     )
 
     # === Vector Store Configuration ===
+    vector_store_id: Optional[str] = Field(
+        default=None,
+        description="OpenAI Vector Store ID (None to create/auto-load)",
+    )
+
     vector_store_name: str = Field(
         default="paper_autopilot_docs",
         description="OpenAI vector store name",
@@ -282,6 +287,13 @@ class Config(BaseSettings):
         description="Maximum concurrent file uploads to vector store",
         ge=1,
         le=20,
+    )
+
+    vector_store_max_files: int = Field(
+        default=10000,
+        description="Maximum files per vector store (OpenAI limit)",
+        ge=1,
+        le=10000,
     )
 
     # === Embedding Configuration ===
