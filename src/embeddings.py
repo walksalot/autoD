@@ -225,7 +225,14 @@ class EmbeddingGenerator:
             from src.config import get_config
 
             config = get_config()
-            age = datetime.now(timezone.utc) - doc.embedding_generated_at
+
+            # Handle both timezone-aware and naive datetimes from SQLite
+            generated_at = doc.embedding_generated_at
+            if generated_at.tzinfo is None:
+                # SQLite returns naive datetimes - assume UTC
+                generated_at = generated_at.replace(tzinfo=timezone.utc)
+
+            age = datetime.now(timezone.utc) - generated_at
             if age.days > config.vector_cache_ttl_days:
                 logger.debug(
                     f"DB cache miss: TTL expired for doc {doc.id} "
