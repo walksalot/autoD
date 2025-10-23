@@ -656,57 +656,149 @@ except Exception as e:
 
 ## Transaction Safety
 
-### Pattern: Compensating Transactions for External API Calls
+### Pattern: Multi-Step Compensating Transactions for External API Calls
 
-**Why**: Prevent orphaned records when DB commits but vector store uploads fail
+**Why**: Prevent orphaned records when DB commits but external API operations fail. Enhanced version (TD1) supports multiple rollback handlers with LIFO execution, critical vs non-critical operations, and comprehensive audit trails.
 
 **File**: `src/transactions.py`
 
 ```python
-from contextlib import contextmanager
-import logging
-from sqlalchemy.orm import Session
+from src.transactions import (
+    CompensatingTransaction,
+    ResourceType,
+    create_files_api_rollback_handler,
+    create_vector_store_rollback_handler,
+)
 
-logger = logging.getLogger(__name__)
+# Example: Files API + Vector Store + Database with automatic cleanup
+audit = {}
+with CompensatingTransaction(session, audit_trail=audit) as txn:
+    # Step 1: Upload to Files API
+    file_obj = client.files.create(file=pdf)
 
-@contextmanager
-def compensating_transaction(session: Session, compensate_fn=None):
-    """
-    Context manager providing compensation logic if commit fails.
+    # Register Files API cleanup (critical=True by default)
+    txn.register_rollback(
+        handler_fn=create_files_api_rollback_handler(client, file_obj.id),
+        resource_type=ResourceType.FILES_API,
+        resource_id=file_obj.id,
+        description="Delete uploaded file from Files API",
+        critical=True  # Must succeed
+    )
 
-    Usage:
-        def cleanup_openai_file(file_id):
-            client.files.delete(file_id)
+    # Step 2: Upload to Vector Store
+    vs_file = client.beta.vector_stores.files.create(
+        vector_store_id=vector_store_id,
+        file_id=file_obj.id
+    )
 
-        with compensating_transaction(session, lambda: cleanup_openai_file(file_id)):
-            doc = Document(...)
-            session.add(doc)
-            # If commit succeeds → no compensation
-            # If commit fails → compensation runs, then re-raises
+    # Register Vector Store cleanup (executed BEFORE Files API due to LIFO)
+    txn.register_rollback(
+        handler_fn=create_vector_store_rollback_handler(
+            client, vector_store_id, vs_file.id
+        ),
+        resource_type=ResourceType.VECTOR_STORE,
+        resource_id=vs_file.id,
+        description="Remove file from vector store",
+        critical=True
+    )
 
-    Args:
-        session: SQLAlchemy session
-        compensate_fn: Callable to run if commit fails (cleanup external resources)
-    """
-    try:
-        yield session
-        session.commit()
-        logger.info("Transaction committed successfully")
-    except Exception as e:
-        session.rollback()
-        logger.error(f"Transaction failed, rolling back: {e}", exc_info=True)
+    # Step 3: Create database record
+    doc = Document(
+        sha256_hex=sha_hex,
+        source_file_id=file_obj.id,
+        vector_store_file_id=vs_file.id,
+        status="completed"
+    )
+    session.add(doc)
 
-        # Run compensation (cleanup external resources)
-        if compensate_fn:
-            try:
-                logger.info("Running compensation logic")
-                compensate_fn()
-                logger.info("Compensation completed successfully")
-            except Exception as comp_err:
-                # Log but don't mask original error
-                logger.error(f"Compensation failed: {comp_err}", exc_info=True)
+    # On success → no rollback (all handlers skipped)
+    # On commit failure → rollback executes in LIFO order:
+    #   1. Vector Store cleanup (last registered)
+    #   2. Files API cleanup (first registered)
+    #   3. Database rollback (automatic)
 
-        raise e  # Re-raise original exception
+# Access comprehensive audit trail
+print(f"Status: {audit['status']}")
+print(f"Handlers: {audit['compensation_stats']}")
+```
+
+### Key Features (TD1 Enhancement)
+
+1. **Multi-Step Rollback**: Register multiple cleanup handlers, executed in LIFO order
+2. **Resource Type Tracking**: Categorize resources (FILES_API, VECTOR_STORE, DATABASE, CUSTOM)
+3. **Critical vs Non-Critical**: Critical handlers must succeed; non-critical allow graceful degradation
+4. **Comprehensive Audit Trail**: JSON-structured logging with timestamps, resource IDs, execution stats
+5. **Pre-built Handlers**: Factory functions for common operations (Files API, Vector Store)
+
+### Simple Usage (Single Rollback)
+
+```python
+from src.transactions import CompensatingTransaction, ResourceType
+
+audit = {}
+with CompensatingTransaction(session, audit_trail=audit) as txn:
+    # Upload file
+    file_obj = client.files.create(file=pdf)
+
+    # Register cleanup
+    txn.register_rollback(
+        handler_fn=lambda: client.files.delete(file_obj.id),
+        resource_type=ResourceType.FILES_API,
+        resource_id=file_obj.id,
+        description="Delete uploaded file",
+    )
+
+    # Create DB record
+    doc = Document(file_id=file_obj.id, ...)
+    session.add(doc)
+
+# If commit succeeds → no rollback
+# If commit fails → deletes file, rolls back DB, re-raises exception
+```
+
+### Advanced: Non-Critical Operations
+
+```python
+with CompensatingTransaction(session) as txn:
+    # Critical: Files API (must cleanup)
+    txn.register_rollback(
+        handler_fn=lambda: client.files.delete(file_id),
+        resource_type=ResourceType.FILES_API,
+        resource_id=file_id,
+        description="Delete uploaded file",
+        critical=True  # Failure raises exception
+    )
+
+    # Non-critical: Analytics notification
+    txn.register_rollback(
+        handler_fn=lambda: analytics.track("upload_failed"),
+        resource_type=ResourceType.CUSTOM,
+        resource_id="analytics-event",
+        description="Send analytics event",
+        critical=False  # Failure logged but doesn't stop other handlers
+    )
+
+    session.add(doc)
+```
+
+### Backward Compatibility
+
+For simple cases, the original `compensating_transaction()` function remains available:
+
+```python
+from src.transactions import compensating_transaction
+
+def cleanup_openai_file(file_id):
+    client.files.delete(file_id)
+
+audit = {}
+with compensating_transaction(session, cleanup_openai_file, audit):
+    doc = Document(...)
+    session.add(doc)
+    # If commit succeeds → no compensation
+    # If commit fails → compensation runs, then re-raises
+
+print(audit)  # {'status': 'success', 'compensation_needed': False, ...}
 ```
 
 ### Alternative: Best-Effort Pattern (Simpler)
