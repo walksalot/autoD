@@ -315,7 +315,7 @@ class TestAuditTrail:
         assert audit_trail["compensation_needed"] is True
         assert audit_trail["compensation_status"] == "failed"
         assert audit_trail["compensation_error"] == "Cleanup API call failed"
-        assert audit_trail["compensation_error_type"] == "IOError"
+        assert audit_trail["compensation_error_type"] == "OSError"  # IOError is OSError in Python 3
 
     def test_audit_trail_with_custom_context_fields(self, db_session):
         """Audit trail can be pre-populated with custom context fields."""
