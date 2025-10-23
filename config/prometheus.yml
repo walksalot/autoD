@@ -1,0 +1,96 @@
+# Prometheus configuration for AutoD monitoring
+#
+# This configuration defines:
+# - Scrape intervals and timeouts
+# - AutoD service scraping targets
+# - Alert rule files
+# - Recording rules for complex queries
+
+global:
+  # How frequently to scrape targets by default
+  scrape_interval: 15s
+
+  # How long until a scrape request times out
+  scrape_timeout: 10s
+
+  # How frequently to evaluate rules
+  evaluation_interval: 15s
+
+  # External labels to add to any time series or alerts
+  external_labels:
+    cluster: 'autod-production'
+    environment: 'production'
+
+# Scrape configurations
+scrape_configs:
+  # AutoD Application Metrics
+  - job_name: 'autod'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+
+    # Metrics path (default: /metrics)
+    metrics_path: /metrics
+
+    # Static service discovery
+    static_configs:
+      - targets:
+          - 'app:8001'  # Docker Compose service name
+
+        # Labels applied to all metrics from this target
+        labels:
+          service: 'autod'
+          component: 'document-processor'
+          tier: 'application'
+
+    # Relabel configurations for advanced scenarios
+    relabel_configs:
+      # Add instance label from target address
+      - source_labels: [__address__]
+        target_label: instance
+
+  # PostgreSQL Database Metrics (optional - requires postgres_exporter)
+  - job_name: 'postgres'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'postgres-exporter:9187'  # Add if deploying postgres_exporter
+
+        labels:
+          service: 'postgres'
+          component: 'database'
+          tier: 'data'
+
+  # Prometheus Self-Monitoring
+  - job_name: 'prometheus'
+    scrape_interval: 30s
+    static_configs:
+      - targets:
+          - 'localhost:9090'
+
+        labels:
+          service: 'prometheus'
+          component: 'monitoring'
+          tier: 'infrastructure'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#             - 'alertmanager:9093'
+
+# Recording rules for frequently used queries
+# These pre-compute expensive queries to improve dashboard performance
+# Alert and recording rule files
+rule_files:
+  - 'alert_rules.yaml'
+  - 'recording_rules.yaml'
+
+# Storage configuration
+storage:
+  tsdb:
+    # Retention period for metrics
+    retention.time: 30d
+
+    # Maximum bytes to use for storage
+    # retention.size: 10GB

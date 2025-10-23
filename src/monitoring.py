@@ -449,3 +449,302 @@ def create_alert(
 def register_health_check(component: str, healthy: bool) -> None:
     """Register component health status."""
     get_health_check().register_check(component, healthy)
+
+
+# Cache-specific monitoring
+
+
+class CacheMetricsCollector:
+    """
+    Specialized metrics collector for embedding and vector cache monitoring.
+
+    Tracks:
+    - Cache hit/miss rates (memory, database, overall)
+    - Cache size metrics (entries, MB)
+    - API call volume and cost
+    - Cache latency (hit vs miss response times)
+    - Expiration and cleanup events
+    - Cache health violations (over-limit, low hit rate)
+
+    Integrates with CacheMonitor and EmbeddingGenerator for comprehensive tracking.
+    """
+
+    def __init__(self, metrics_collector: Optional[MetricsCollector] = None):
+        """
+        Initialize cache metrics collector.
+
+        Args:
+            metrics_collector: Global metrics collector (uses singleton if None)
+        """
+        self.collector = metrics_collector or get_metrics_collector()
+        logger.info("Initialized CacheMetricsCollector")
+
+    def record_cache_hit(
+        self, tier: str = "memory", hit_latency_ms: Optional[float] = None
+    ) -> None:
+        """
+        Record cache hit event.
+
+        Args:
+            tier: Cache tier (memory, database, openai)
+            hit_latency_ms: Response latency in milliseconds
+        """
+        self.collector.record(
+            name="cache.hit",
+            value=1,
+            unit="count",
+            labels={"tier": tier},
+        )
+
+        if hit_latency_ms is not None:
+            self.collector.record(
+                name="cache.hit.latency_ms",
+                value=hit_latency_ms,
+                unit="ms",
+                labels={"tier": tier},
+            )
+
+    def record_cache_miss(self, api_latency_ms: Optional[float] = None) -> None:
+        """
+        Record cache miss event (API call required).
+
+        Args:
+            api_latency_ms: API call latency in milliseconds
+        """
+        self.collector.record(name="cache.miss", value=1, unit="count")
+
+        if api_latency_ms is not None:
+            self.collector.record(
+                name="cache.miss.latency_ms", value=api_latency_ms, unit="ms"
+            )
+
+    def record_cache_size(
+        self,
+        memory_entries: int,
+        db_entries: int,
+        db_size_mb: float,
+        openai_files: Optional[int] = None,
+    ) -> None:
+        """
+        Record cache size metrics.
+
+        Args:
+            memory_entries: Number of entries in memory cache
+            db_entries: Number of entries in database cache
+            db_size_mb: Database cache size in megabytes
+            openai_files: Number of files in OpenAI vector store
+        """
+        self.collector.record(
+            name="cache.size.memory_entries", value=memory_entries, unit="count"
+        )
+        self.collector.record(
+            name="cache.size.db_entries", value=db_entries, unit="count"
+        )
+        self.collector.record(name="cache.size.db_mb", value=db_size_mb, unit="mb")
+
+        if openai_files is not None:
+            self.collector.record(
+                name="cache.size.openai_files", value=openai_files, unit="count"
+            )
+
+    def record_cache_cleanup(
+        self, cleanup_type: str, entries_removed: int, size_freed_mb: float
+    ) -> None:
+        """
+        Record cache cleanup event.
+
+        Args:
+            cleanup_type: Type of cleanup (ttl_expired, lru_eviction, manual)
+            entries_removed: Number of entries removed
+            size_freed_mb: Space freed in megabytes
+        """
+        self.collector.record(
+            name="cache.cleanup.entries_removed",
+            value=entries_removed,
+            unit="count",
+            labels={"type": cleanup_type},
+        )
+        self.collector.record(
+            name="cache.cleanup.size_freed_mb",
+            value=size_freed_mb,
+            unit="mb",
+            labels={"type": cleanup_type},
+        )
+
+    def record_api_cost(self, tokens: int, cost_usd: float, model: str) -> None:
+        """
+        Record API usage cost.
+
+        Args:
+            tokens: Total tokens consumed
+            cost_usd: Cost in USD
+            model: Model used (e.g., text-embedding-3-small)
+        """
+        self.collector.record(
+            name="api.tokens", value=tokens, unit="tokens", labels={"model": model}
+        )
+        self.collector.record(
+            name="api.cost_usd", value=cost_usd, unit="usd", labels={"model": model}
+        )
+
+    def get_cache_hit_rate(self, window_minutes: int = 5) -> Dict[str, Any]:
+        """
+        Calculate cache hit rate over time window.
+
+        Args:
+            window_minutes: Time window to aggregate over
+
+        Returns:
+            Dictionary with hit rate metrics:
+            - memory_hit_rate: Memory cache hit rate (0.0-1.0)
+            - db_hit_rate: Database cache hit rate (0.0-1.0)
+            - overall_hit_rate: Combined hit rate (0.0-1.0)
+            - total_requests: Total cache requests
+            - cache_misses: Number of API calls
+        """
+        since = datetime.now() - timedelta(minutes=window_minutes)
+
+        memory_hits = len(self.collector.get_metrics(name="cache.hit", since=since))
+        db_hits = sum(
+            1
+            for m in self.collector.get_metrics(name="cache.hit", since=since)
+            if m.labels.get("tier") == "database"
+        )
+        misses = len(self.collector.get_metrics(name="cache.miss", since=since))
+
+        total_requests = memory_hits + misses
+        overall_hit_rate = memory_hits / total_requests if total_requests > 0 else 0.0
+        db_hit_rate = db_hits / total_requests if total_requests > 0 else 0.0
+
+        return {
+            "memory_hit_rate": (memory_hits - db_hits) / max(total_requests, 1),
+            "db_hit_rate": db_hit_rate,
+            "overall_hit_rate": overall_hit_rate,
+            "total_requests": total_requests,
+            "cache_misses": misses,
+            "window_minutes": window_minutes,
+        }
+
+    def get_cache_latency_stats(self, window_minutes: int = 5) -> Dict[str, Any]:
+        """
+        Get cache latency statistics.
+
+        Args:
+            window_minutes: Time window to aggregate over
+
+        Returns:
+            Dictionary with latency percentiles (P50, P95, P99) for hits and misses
+        """
+        hit_latencies = [
+            m.value
+            for m in self.collector.get_metrics(
+                name="cache.hit.latency_ms",
+                since=datetime.now() - timedelta(minutes=window_minutes),
+            )
+        ]
+        miss_latencies = [
+            m.value
+            for m in self.collector.get_metrics(
+                name="cache.miss.latency_ms",
+                since=datetime.now() - timedelta(minutes=window_minutes),
+            )
+        ]
+
+        def percentile(data: List[float], p: float) -> float:
+            if not data:
+                return 0.0
+            sorted_data = sorted(data)
+            k = (len(sorted_data) - 1) * p
+            f = int(k)
+            c = min(f + 1, len(sorted_data) - 1)
+            if f == c:
+                return sorted_data[int(k)]
+            d0 = sorted_data[f] * (c - k)
+            d1 = sorted_data[c] * (k - f)
+            return d0 + d1
+
+        return {
+            "cache_hit": {
+                "p50_ms": percentile(hit_latencies, 0.5),
+                "p95_ms": percentile(hit_latencies, 0.95),
+                "p99_ms": percentile(hit_latencies, 0.99),
+                "count": len(hit_latencies),
+            },
+            "cache_miss": {
+                "p50_ms": percentile(miss_latencies, 0.5),
+                "p95_ms": percentile(miss_latencies, 0.95),
+                "p99_ms": percentile(miss_latencies, 0.99),
+                "count": len(miss_latencies),
+            },
+        }
+
+    def check_cache_health(
+        self, min_hit_rate: float = 0.8, max_size_mb: float = 1024
+    ) -> Dict[str, Any]:
+        """
+        Perform cache health check.
+
+        Args:
+            min_hit_rate: Minimum acceptable hit rate (default: 0.8)
+            max_size_mb: Maximum acceptable cache size in MB (default: 1024)
+
+        Returns:
+            Health check results with status and recommendations
+        """
+        hit_rate_data = self.get_cache_hit_rate(window_minutes=15)
+        overall_hit_rate = hit_rate_data["overall_hit_rate"]
+
+        # Get latest cache size metrics
+        db_size_metrics = self.collector.get_metrics(
+            name="cache.size.db_mb",
+            since=datetime.now() - timedelta(minutes=5),
+        )
+        current_size_mb = db_size_metrics[-1].value if db_size_metrics else 0.0
+
+        issues = []
+        warnings = []
+        recommendations = []
+
+        # Check hit rate
+        if overall_hit_rate < min_hit_rate:
+            issues.append(
+                f"Low cache hit rate: {overall_hit_rate:.1%} (target: {min_hit_rate:.1%})"
+            )
+            recommendations.append(
+                "Increase cache TTL or max size to retain more embeddings"
+            )
+
+        # Check cache size
+        if current_size_mb > max_size_mb:
+            warnings.append(
+                f"Cache size {current_size_mb:.1f} MB exceeds limit {max_size_mb} MB"
+            )
+            recommendations.append("Run cache cleanup to reduce size")
+
+        # Check if no requests (could indicate cache not being used)
+        if hit_rate_data["total_requests"] == 0:
+            warnings.append("No cache requests recorded in last 15 minutes")
+
+        status = "unhealthy" if issues else ("warning" if warnings else "healthy")
+
+        return {
+            "status": status,
+            "hit_rate": overall_hit_rate,
+            "cache_size_mb": current_size_mb,
+            "issues": issues,
+            "warnings": warnings,
+            "recommendations": recommendations,
+            "metrics": hit_rate_data,
+        }
+
+
+# Global cache metrics instance
+_cache_metrics: Optional[CacheMetricsCollector] = None
+
+
+def get_cache_metrics() -> CacheMetricsCollector:
+    """Get global cache metrics collector instance."""
+    global _cache_metrics
+    if _cache_metrics is None:
+        _cache_metrics = CacheMetricsCollector()
+    return _cache_metrics

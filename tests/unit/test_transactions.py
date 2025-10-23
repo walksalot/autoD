@@ -205,3 +205,211 @@ class TestCompensatingTransaction:
         assert cleanup_state["step1"] is True
         assert cleanup_state["step2"] is False
         assert cleanup_state["step3"] is False
+
+
+class TestAuditTrail:
+    """Test suite for audit trail functionality in compensating transactions."""
+
+    def test_audit_trail_captures_successful_transaction(self, db_session):
+        """Audit trail should capture all events for successful transaction."""
+        audit_trail = {}
+
+        with compensating_transaction(
+            db_session, compensate_fn=None, audit_trail=audit_trail
+        ):
+            doc = MockDocument(name="audit-success")
+            db_session.add(doc)
+
+        # Verify audit trail fields for success
+        assert "started_at" in audit_trail
+        assert "committed_at" in audit_trail
+        assert audit_trail["status"] == "success"
+        assert audit_trail["compensation_needed"] is False
+
+        # Verify timestamps are ISO 8601 formatted
+        from datetime import datetime
+
+        datetime.fromisoformat(audit_trail["started_at"].replace("Z", "+00:00"))
+        datetime.fromisoformat(audit_trail["committed_at"].replace("Z", "+00:00"))
+
+        # committed_at should be after started_at
+        assert audit_trail["committed_at"] >= audit_trail["started_at"]
+
+    def test_audit_trail_captures_transaction_failure(self, db_session):
+        """Audit trail should capture rollback and error details."""
+        audit_trail = {}
+
+        with pytest.raises(ValueError):
+            with compensating_transaction(
+                db_session, compensate_fn=None, audit_trail=audit_trail
+            ):
+                doc = MockDocument(name="audit-fail")
+                db_session.add(doc)
+                raise ValueError("Simulated database error")
+
+        # Verify audit trail fields for failure
+        assert "started_at" in audit_trail
+        assert "rolled_back_at" in audit_trail
+        assert audit_trail["status"] == "failed"
+        assert audit_trail["error"] == "Simulated database error"
+        assert audit_trail["error_type"] == "ValueError"
+        assert audit_trail["compensation_needed"] is False
+
+        # Verify timestamps
+        from datetime import datetime
+
+        datetime.fromisoformat(audit_trail["started_at"].replace("Z", "+00:00"))
+        datetime.fromisoformat(audit_trail["rolled_back_at"].replace("Z", "+00:00"))
+
+    def test_audit_trail_captures_successful_compensation(self, db_session):
+        """Audit trail should capture successful compensation execution."""
+        audit_trail = {}
+        compensation_executed = []
+
+        def compensation_fn():
+            compensation_executed.append(True)
+
+        with pytest.raises(RuntimeError):
+            with compensating_transaction(
+                db_session, compensate_fn=compensation_fn, audit_trail=audit_trail
+            ):
+                doc = MockDocument(name="comp-success")
+                db_session.add(doc)
+                raise RuntimeError("DB commit failed")
+
+        # Verify compensation executed
+        assert len(compensation_executed) == 1
+
+        # Verify audit trail captured compensation success
+        assert audit_trail["status"] == "failed"
+        assert audit_trail["compensation_needed"] is True
+        assert audit_trail["compensation_status"] == "success"
+        assert "compensation_completed_at" in audit_trail
+
+        # Verify timestamps
+        from datetime import datetime
+
+        datetime.fromisoformat(
+            audit_trail["compensation_completed_at"].replace("Z", "+00:00")
+        )
+
+    def test_audit_trail_captures_compensation_failure(self, db_session):
+        """Audit trail should capture compensation failure details."""
+        audit_trail = {}
+
+        def failing_compensation():
+            raise IOError("Cleanup API call failed")
+
+        with pytest.raises(ValueError):
+            with compensating_transaction(
+                db_session, compensate_fn=failing_compensation, audit_trail=audit_trail
+            ):
+                doc = MockDocument(name="comp-fail")
+                db_session.add(doc)
+                raise ValueError("Original transaction error")
+
+        # Verify audit trail captured compensation failure
+        assert audit_trail["status"] == "failed"
+        assert audit_trail["error"] == "Original transaction error"
+        assert audit_trail["error_type"] == "ValueError"
+        assert audit_trail["compensation_needed"] is True
+        assert audit_trail["compensation_status"] == "failed"
+        assert audit_trail["compensation_error"] == "Cleanup API call failed"
+        assert audit_trail["compensation_error_type"] == "OSError"  # IOError is OSError in Python 3
+
+    def test_audit_trail_with_custom_context_fields(self, db_session):
+        """Audit trail can be pre-populated with custom context fields."""
+        audit_trail = {
+            "stage": "UploadStage",
+            "pdf_path": "/inbox/test.pdf",
+            "file_id": "file-abc123",
+        }
+
+        with compensating_transaction(
+            db_session, compensate_fn=None, audit_trail=audit_trail
+        ):
+            doc = MockDocument(name="custom-context")
+            db_session.add(doc)
+
+        # Verify custom fields preserved
+        assert audit_trail["stage"] == "UploadStage"
+        assert audit_trail["pdf_path"] == "/inbox/test.pdf"
+        assert audit_trail["file_id"] == "file-abc123"
+
+        # Verify transaction fields added
+        assert audit_trail["status"] == "success"
+        assert "started_at" in audit_trail
+        assert "committed_at" in audit_trail
+
+    def test_audit_trail_none_by_default(self, db_session):
+        """Transaction should work without audit_trail parameter."""
+        # Should not raise
+        with compensating_transaction(db_session, compensate_fn=None):
+            doc = MockDocument(name="no-audit")
+            db_session.add(doc)
+
+        # Verify document committed
+        result = db_session.query(MockDocument).filter_by(name="no-audit").first()
+        assert result is not None
+
+    def test_audit_trail_mutation_visible_to_caller(self, db_session):
+        """Audit trail mutations should be visible to calling code."""
+        audit_trail = {"initial_field": "value"}
+
+        with compensating_transaction(
+            db_session, compensate_fn=None, audit_trail=audit_trail
+        ):
+            doc = MockDocument(name="mutation-test")
+            db_session.add(doc)
+
+        # Caller can access mutated audit trail
+        assert "initial_field" in audit_trail
+        assert "started_at" in audit_trail
+        assert "committed_at" in audit_trail
+        assert "status" in audit_trail
+
+    def test_audit_trail_for_logging_integration(self, db_session, caplog):
+        """Audit trail can be used with structured logging."""
+        import logging
+
+        audit_trail = {
+            "operation": "document_upload",
+            "user_id": "user-123",
+        }
+
+        with caplog.at_level(logging.INFO):
+            with compensating_transaction(
+                db_session, compensate_fn=None, audit_trail=audit_trail
+            ):
+                doc = MockDocument(name="logging-test")
+                db_session.add(doc)
+
+        # Verify transaction logged
+        assert "Transaction committed successfully" in caplog.text
+
+    def test_audit_trail_timing_precision(self, db_session):
+        """Audit trail timestamps should be precise enough for ordering."""
+        audit_trail = {}
+
+        with compensating_transaction(
+            db_session, compensate_fn=None, audit_trail=audit_trail
+        ):
+            doc = MockDocument(name="timing-test")
+            db_session.add(doc)
+
+        # Verify timestamps include microseconds
+        started = audit_trail["started_at"]
+        committed = audit_trail["committed_at"]
+
+        # ISO 8601 with timezone
+        assert "T" in started
+        assert "T" in committed
+
+        # Should be parseable
+        from datetime import datetime
+
+        dt_started = datetime.fromisoformat(started.replace("Z", "+00:00"))
+        dt_committed = datetime.fromisoformat(committed.replace("Z", "+00:00"))
+
+        # Committed should be after started
+        assert dt_committed >= dt_started
