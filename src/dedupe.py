@@ -116,38 +116,47 @@ def build_vector_store_attributes(
     if doc.sha256_base64:
         attributes["sha256_base64"] = doc.sha256_base64
 
+    # Get metadata from JSON blob
+    metadata = doc.metadata_json or {}
+
     # Priority 2: Document classification
-    if doc.doc_type:
-        attributes["doc_type"] = doc.doc_type
-    if doc.doc_subtype:
-        attributes["doc_subtype"] = doc.doc_subtype
+    if metadata.get("doc_type"):
+        attributes["doc_type"] = metadata["doc_type"]
+    if metadata.get("doc_subtype"):
+        attributes["doc_subtype"] = metadata["doc_subtype"]
 
     # Priority 3: Key parties
-    if doc.issuer:
-        attributes["issuer"] = doc.issuer[:100]  # Truncate long names
-    if doc.recipient:
-        attributes["recipient"] = doc.recipient[:100]
+    if metadata.get("issuer"):
+        attributes["issuer"] = metadata["issuer"][:100]  # Truncate long names
+    if metadata.get("recipient"):
+        attributes["recipient"] = metadata["recipient"][:100]
 
     # Priority 4: Dates (as ISO strings)
-    if doc.primary_date:
-        attributes["primary_date"] = doc.primary_date.strftime("%Y-%m-%d")
-    if doc.secondary_date:
-        attributes["secondary_date"] = doc.secondary_date.strftime("%Y-%m-%d")
+    if metadata.get("primary_date"):
+        attributes["primary_date"] = metadata["primary_date"]
+    if metadata.get("secondary_date"):
+        attributes["secondary_date"] = metadata["secondary_date"]
 
     # Priority 5: Financial information
-    if doc.total_amount is not None:
-        attributes["total_amount"] = f"{doc.total_amount:.2f}"
-    if doc.currency:
-        attributes["currency"] = doc.currency
+    if metadata.get("total_amount") is not None:
+        total_amt = metadata["total_amount"]
+        attributes["total_amount"] = (
+            f"{total_amt:.2f}"
+            if isinstance(total_amt, (int, float))
+            else str(total_amt)
+        )
+    if metadata.get("currency"):
+        attributes["currency"] = metadata["currency"]
 
     # Priority 6: Business intelligence
-    if doc.urgency_level:
-        attributes["urgency_level"] = doc.urgency_level
+    if metadata.get("urgency_level"):
+        attributes["urgency_level"] = metadata["urgency_level"]
 
     # Priority 7: Quality indicators
-    if doc.extraction_quality:
-        attributes["extraction_quality"] = doc.extraction_quality
-    attributes["requires_review"] = "true" if doc.requires_review else "false"
+    if metadata.get("extraction_quality"):
+        attributes["extraction_quality"] = metadata["extraction_quality"]
+    requires_review = metadata.get("requires_review", False)
+    attributes["requires_review"] = "true" if requires_review else "false"
 
     # Priority 8: Timestamps
     if doc.processed_at:
