@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from src.api_client import ResponsesAPIClient
 from src.pipeline import ProcessingContext, ProcessingStage
@@ -21,7 +21,7 @@ from src.vector_store import VectorStoreManager
 logger = logging.getLogger(__name__)
 
 
-def _format_vector_context(matches: List[dict]) -> Optional[str]:
+def _format_vector_context(matches: List[Dict[str, Any]]) -> Optional[str]:
     """Format vector-search hits into a short prompt-friendly block."""
     if not matches:
         return None

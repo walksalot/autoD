@@ -215,7 +215,7 @@ class TestSearchResults:
 
     def test_creation(self, sample_documents):
         """Test creating SearchResults instance."""
-        _results = [
+        results = [
             SearchResult(document=sample_documents[0], similarity_score=0.95, rank=1),
             SearchResult(document=sample_documents[1], similarity_score=0.88, rank=2),
         ]
@@ -238,7 +238,7 @@ class TestSearchResults:
 
     def test_optional_filters(self, sample_documents):
         """Test SearchResults with no filters applied."""
-        _results = []
+        results = []
         search_results = SearchResults(
             results=results,
             total_count=0,
@@ -328,7 +328,7 @@ class TestBasicSearch:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("ACME invoice")
+        results = search_engine.search("ACME invoice")
 
         assert isinstance(results, SearchResults)
         assert len(results.results) > 0
@@ -354,7 +354,7 @@ class TestBasicSearch:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("test query", limit=10)
+        results = search_engine.search("test query", limit=10)
 
         # Verify descending order
         for i in range(len(results.results) - 1):
@@ -382,7 +382,7 @@ class TestBasicSearch:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("test query", limit=10)
+        results = search_engine.search("test query", limit=10)
 
         for idx, result in enumerate(results.results):
             assert result.rank == idx + 1
@@ -417,7 +417,7 @@ class TestBasicSearch:
 
         # High threshold
         search_engine.min_similarity = 0.99
-        _results = search_engine.search("dissimilar query")
+        results = search_engine.search("dissimilar query")
 
         assert len(results.results) == 0
         assert results.total_count == 0
@@ -432,7 +432,7 @@ class TestBasicSearch:
         query_mock.all = Mock(return_value=[])
         mock_session.query = Mock(return_value=query_mock)
 
-        _results = search_engine.search("test query")
+        results = search_engine.search("test query")
 
         assert len(results.results) == 0
         assert results.total_count == 0
@@ -458,7 +458,7 @@ class TestBasicSearch:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("test query")
+        results = search_engine.search("test query")
 
         assert results.cache_hit is True
 
@@ -490,7 +490,7 @@ class TestPagination:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("test query", limit=2)
+        results = search_engine.search("test query", limit=2)
 
         assert len(results.results) <= 2
 
@@ -542,7 +542,7 @@ class TestPagination:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("test query", offset=100)
+        results = search_engine.search("test query", offset=100)
 
         assert len(results.results) == 0
 
@@ -606,7 +606,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query", filters={"doc_type": "Invoice"}
             )
 
@@ -640,7 +640,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query", filters={"doc_type": ["Invoice", "Receipt"]}
             )
 
@@ -673,7 +673,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query", filters={"issuer": "acme"}  # Lowercase should match
             )
 
@@ -706,7 +706,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query", filters={"date_range": {"start": "2024-02-01"}}
             )
 
@@ -739,7 +739,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query", filters={"date_range": {"end": "2024-02-28"}}
             )
 
@@ -766,7 +766,7 @@ class TestMetadataFiltering:
                 cache_key="query_key",
             )
 
-            _results = search_engine.search(
+            results = search_engine.search(
                 "test query",
                 filters={"date_range": {"start": "2024-01-01", "end": "2024-01-31"}},
             )
@@ -802,7 +802,7 @@ class TestMetadataFiltering:
                 "date_range": {"start": "2024-01-01", "end": "2024-01-31"},
             }
 
-            _results = search_engine.search("test query", filters=filters)
+            results = search_engine.search("test query", filters=filters)
 
             assert results.filters_applied == filters
 
@@ -898,7 +898,7 @@ class TestSearchByDocument:
         query_mock.all = Mock(return_value=sample_documents[1:4])
         mock_session.query = Mock(return_value=query_mock)
 
-        _results = search_engine.search_by_document(source_doc, limit=5)
+        results = search_engine.search_by_document(source_doc, limit=5)
 
         assert isinstance(results, SearchResults)
         assert results.cache_hit is True  # Uses cached embedding from DB
@@ -934,7 +934,7 @@ class TestSearchByDocument:
         query_mock.all = Mock(return_value=sample_documents[:4])
         mock_session.query = Mock(return_value=query_mock)
 
-        _results = search_engine.search_by_document(
+        results = search_engine.search_by_document(
             source_doc, limit=5, exclude_self=False
         )
 
@@ -970,7 +970,7 @@ class TestSearchByDocument:
             mock_session.query = Mock(return_value=query_mock)
             mock_filter.return_value = query_mock
 
-            _results = search_engine.search_by_document(
+            results = search_engine.search_by_document(
                 source_doc, filters={"doc_type": "Invoice"}
             )
 
@@ -988,7 +988,7 @@ class TestSearchByDocument:
         query_mock.all = Mock(return_value=[])
         mock_session.query = Mock(return_value=query_mock)
 
-        _results = search_engine.search_by_document(source_doc)
+        results = search_engine.search_by_document(source_doc)
 
         assert len(results.results) == 0
         assert results.total_count == 0
@@ -1012,7 +1012,7 @@ class TestSearchByDocument:
         # Set high threshold
         search_engine.min_similarity = 0.95
 
-        _results = search_engine.search_by_document(source_doc, limit=5)
+        results = search_engine.search_by_document(source_doc, limit=5)
 
         # All documents should be filtered out by threshold
         assert len(results.results) == 0
@@ -1048,7 +1048,7 @@ class TestPerformance:
         )
 
         start = time.perf_counter()
-        _results = search_engine.search("test query")
+        results = search_engine.search("test query")
         elapsed_ms = (time.perf_counter() - start) * 1000
 
         # With mocked components, should be very fast
@@ -1228,7 +1228,7 @@ class TestEdgeCases:
         )
 
         # Special characters should not cause errors
-        _results = search_engine.search("ACME Corp. (2024) - Invoice #12345")
+        results = search_engine.search("ACME Corp. (2024) - Invoice #12345")
 
         assert isinstance(results, SearchResults)
 
@@ -1251,7 +1251,7 @@ class TestEdgeCases:
             cache_key="query_key",
         )
 
-        _results = search_engine.search("Café Français — 日本語 — emoji 🎉")
+        results = search_engine.search("Café Français — 日本語 — emoji 🎉")
 
         assert isinstance(results, SearchResults)
 
@@ -1275,7 +1275,7 @@ class TestEdgeCases:
         )
 
         long_query = "test " * 1000  # Very long query
-        _results = search_engine.search(long_query)
+        results = search_engine.search(long_query)
 
         assert isinstance(results, SearchResults)
 
@@ -1327,7 +1327,7 @@ class TestEdgeCases:
         # Set high threshold
         search_engine.min_similarity = 0.95
 
-        _results = search_engine.search("dissimilar query")
+        results = search_engine.search("dissimilar query")
 
         assert len(results.results) == 0
         assert results.total_count == 0
@@ -1354,7 +1354,7 @@ class TestEdgeCases:
         # Use limit within max but larger than available results
         with patch("src.search.get_config") as mock_config:
             mock_config.return_value = Mock(search_max_top_k=20)
-            _results = search_engine.search("test query", limit=15)
+            results = search_engine.search("test query", limit=15)
 
             # Should return available results (not raise error)
             assert len(results.results) <= 2

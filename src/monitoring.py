@@ -11,7 +11,7 @@ Provides:
 
 import logging
 from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from datetime import datetime, timedelta
 from enum import Enum
 import json
@@ -55,7 +55,7 @@ class Metric:
     value: float
     unit: str
     timestamp: datetime
-    labels: Dict[str, str] = None
+    labels: Dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -81,7 +81,7 @@ class Alert:
     message: str
     component: str
     timestamp: datetime
-    details: Dict[str, Any] = None
+    details: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
@@ -97,7 +97,7 @@ class MetricsCollector:
     Collects metrics from all components and provides aggregated views.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize metrics collector."""
         self.metrics: List[Metric] = []
         self.max_metrics = 10000  # Prevent memory bloat
@@ -333,7 +333,7 @@ class HealthCheck:
     Provides readiness and liveness probes for orchestration systems.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize health check system."""
         self.checks: Dict[str, bool] = {}
         self.degraded_components: Dict[str, str] = {}

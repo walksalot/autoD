@@ -29,6 +29,8 @@ Usage:
     ])
 """
 
+from typing import Any
+
 __all__ = [
     "ComputeSHA256Stage",
     "DedupeCheckStage",
@@ -39,7 +41,7 @@ __all__ = [
 
 
 # Lazy imports to avoid circular dependencies
-def __getattr__(name):
+def __getattr__(name: str) -> Any:
     if name == "ComputeSHA256Stage":
         from src.stages.sha256_stage import ComputeSHA256Stage
 

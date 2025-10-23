@@ -17,7 +17,8 @@ from contextlib import contextmanager
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
-from typing import Optional, Callable, Dict, Any, List
+from typing import Optional, Callable, Dict, Any, List, Generator, Type, Literal
+from types import TracebackType
 from dataclasses import dataclass
 from enum import Enum
 
@@ -242,7 +243,12 @@ class CompensatingTransaction:
 
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Literal[False]:
         """
         Commit or rollback with compensation.
 
@@ -323,7 +329,9 @@ class CompensatingTransaction:
 
         return False  # Re-raise original exception
 
-    def _execute_rollback(self, exc_type, exc_val):
+    def _execute_rollback(
+        self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException]
+    ) -> None:
         """
         Execute rollback of database and all registered handlers.
 
@@ -431,7 +439,7 @@ class CompensatingTransaction:
 # Pre-built rollback handlers for common operations
 
 
-def create_files_api_rollback_handler(client, file_id: str) -> Callable[[], None]:
+def create_files_api_rollback_handler(client: Any, file_id: str) -> Callable[[], None]:
     """
     Create a rollback handler for OpenAI Files API upload.
 
@@ -452,7 +460,7 @@ def create_files_api_rollback_handler(client, file_id: str) -> Callable[[], None
         )
     """
 
-    def cleanup():
+    def cleanup() -> None:
         logger.info(f"Deleting file from Files API: {file_id}")
         try:
             client.files.delete(file_id)
@@ -465,7 +473,7 @@ def create_files_api_rollback_handler(client, file_id: str) -> Callable[[], None
 
 
 def create_vector_store_rollback_handler(
-    client, vector_store_id: str, file_id: str
+    client: Any, vector_store_id: str, file_id: str
 ) -> Callable[[], None]:
     """
     Create a rollback handler for Vector Store file upload.
@@ -490,7 +498,7 @@ def create_vector_store_rollback_handler(
         )
     """
 
-    def cleanup():
+    def cleanup() -> None:
         logger.info(f"Removing file {file_id} from vector store {vector_store_id}")
         try:
             client.beta.vector_stores.files.delete(
@@ -513,9 +521,9 @@ def create_vector_store_rollback_handler(
 @contextmanager
 def compensating_transaction(
     session: Session,
-    compensate_fn: Optional[Callable] = None,
+    compensate_fn: Optional[Callable[[], None]] = None,
     audit_trail: Optional[Dict[str, Any]] = None,
-):
+) -> Generator[Session, None, None]:
     """
     Simple context manager providing compensation logic if commit fails.
 

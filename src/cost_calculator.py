@@ -326,7 +326,7 @@ class CostTracker:
     @property
     def total_cost(self) -> float:
         """Total cost across all requests."""
-        return sum(r["total_cost_usd"] for r in self.requests)
+        return float(sum(r["total_cost_usd"] for r in self.requests))
 
     @property
     def total_tokens(self) -> int:
@@ -341,7 +341,7 @@ class CostTracker:
     @property
     def total_cache_savings(self) -> float:
         """Total savings from caching across all requests."""
-        return sum(r["cache_savings_usd"] for r in self.requests)
+        return float(sum(r["cache_savings_usd"] for r in self.requests))
 
     @property
     def average_cost(self) -> float:

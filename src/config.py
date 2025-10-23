@@ -20,7 +20,7 @@ Usage:
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Any, Dict, Literal, Optional
 
 
 class Config(BaseSettings):
@@ -94,7 +94,7 @@ class Config(BaseSettings):
 
     @model_validator(mode="before")
     @classmethod
-    def load_openai_key_from_file(cls, values: dict):
+    def load_openai_key_from_file(cls, values: Dict[str, Any]) -> Dict[str, Any]:
         """
         Automatically load OPENAI_API_KEY from ~/.OPENAI_API_KEY when not set.
 

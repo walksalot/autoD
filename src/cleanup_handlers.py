@@ -6,6 +6,7 @@ Each handler is responsible for cleaning up orphaned resources (files, vector st
 """
 
 import logging
+from typing import Callable, List, Tuple
 from openai import OpenAI
 
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ def cleanup_vector_store_upload(
             },
         )
 
-        client.beta.vector_stores.files.delete(
+        client.beta.vector_stores.files.delete(  # type: ignore[attr-defined]
             vector_store_id=vector_store_id, file_id=file_id
         )
 
@@ -114,7 +115,9 @@ def cleanup_vector_store_upload(
         raise
 
 
-def cleanup_multiple_resources(cleanup_fns: list) -> None:
+def cleanup_multiple_resources(
+    cleanup_fns: List[Tuple[str, Callable[[], None]]]
+) -> None:
     """
     Execute multiple cleanup functions in LIFO order (reverse).
 
@@ -206,13 +209,13 @@ if __name__ == "__main__":
     print("\nTest 4: LIFO cleanup order")
     execution_order = []
 
-    def cleanup_a():
+    def cleanup_a() -> None:
         execution_order.append("A")
 
-    def cleanup_b():
+    def cleanup_b() -> None:
         execution_order.append("B")
 
-    def cleanup_c():
+    def cleanup_c() -> None:
         execution_order.append("C")
 
     cleanup_multiple_resources(

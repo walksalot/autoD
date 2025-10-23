@@ -103,7 +103,7 @@ class PersistToDBStage(ProcessingStage):
         }
 
         # Define cleanup function for compensating transaction
-        def cleanup():
+        def cleanup() -> None:
             """Cleanup external resources if database commit fails."""
             if self.client and context.file_id:
                 cleanup_files_api_upload(self.client, context.file_id)

@@ -44,6 +44,7 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
@@ -147,7 +148,7 @@ class SemanticSearchEngine:
 
     def _compute_similarities(
         self, query_embedding: List[float], document_embeddings: List[List[float]]
-    ) -> np.ndarray:
+    ) -> NDArray[np.float32]:
         """Compute cosine similarity between query and documents (vectorized).
 
         Uses NumPy for efficient batch computation of cosine similarity:
@@ -172,7 +173,7 @@ class SemanticSearchEngine:
         doc_norms = doc_matrix / np.linalg.norm(doc_matrix, axis=1, keepdims=True)
 
         # Compute cosine similarity (dot product of normalized vectors)
-        similarities = np.dot(doc_norms, query_norm)
+        similarities: NDArray[np.float32] = np.dot(doc_norms, query_norm)
 
         return similarities
 
@@ -391,7 +392,7 @@ class SemanticSearchEngine:
         logger.debug(f"Loaded {len(documents)} documents with embeddings")
 
         # Step 4: Extract embeddings for similarity computation
-        document_embeddings = [doc.embedding_vector for doc in documents]
+        document_embeddings = [doc.embedding_vector["embedding"] for doc in documents]
 
         # Step 5: Compute cosine similarities (vectorized NumPy)
         similarities = self._compute_similarities(query_embedding, document_embeddings)
@@ -508,7 +509,9 @@ class SemanticSearchEngine:
         )
 
         # Use document's embedding directly (already cached in DB)
-        query_embedding = document.embedding_vector
+        assert document.embedding_vector is not None
+        assert isinstance(document.embedding_vector, dict)
+        query_embedding: List[float] = document.embedding_vector["embedding"]
 
         # Build query with filters (exclude source document if requested)
         base_query = self.session.query(Document).filter(
@@ -535,7 +538,7 @@ class SemanticSearchEngine:
             )
 
         # Compute similarities
-        document_embeddings = [doc.embedding_vector for doc in documents]
+        document_embeddings = [doc.embedding_vector["embedding"] for doc in documents]
         similarities = self._compute_similarities(query_embedding, document_embeddings)
 
         # Filter by threshold and sort

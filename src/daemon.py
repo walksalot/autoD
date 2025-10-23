@@ -14,6 +14,7 @@ import time
 import threading
 from pathlib import Path
 from queue import Queue, Empty
+from typing import Any
 import logging
 
 from watchdog.observers import Observer
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 _logger_configured = False
 
 
-def _ensure_logging():
+def _ensure_logging() -> None:
     """Ensure logging is configured (called lazily on first use)."""
     global _logger_configured
     if not _logger_configured:
@@ -129,9 +130,9 @@ class PDFFileHandler(FileSystemEventHandler):
 
     def __init__(
         self,
-        processing_queue: Queue,
+        processing_queue: "Queue[Path]",
         stabilizer: FileStabilizer,
-        processed_files: set,
+        processed_files: "set[str]",
     ):
         super().__init__()
         self.processing_queue = processing_queue
@@ -160,7 +161,7 @@ class PDFFileHandler(FileSystemEventHandler):
 
             return True
 
-    def handle_pdf_file(self, file_path: Path):
+    def handle_pdf_file(self, file_path: Path) -> None:
         """Handle a new or modified PDF file."""
         if not self.should_process(file_path):
             return
@@ -184,7 +185,7 @@ class PDFFileHandler(FileSystemEventHandler):
         else:
             logger.warning(f"File failed stabilization check: {file_path.name}")
 
-    def on_created(self, event):
+    def on_created(self, event: Any) -> None:
         """Handle file creation event."""
         if event.is_directory:
             return
@@ -193,7 +194,7 @@ class PDFFileHandler(FileSystemEventHandler):
         if self.is_pdf_file(file_path):
             self.handle_pdf_file(file_path)
 
-    def on_modified(self, event):
+    def on_modified(self, event: Any) -> None:
         """Handle file modification event."""
         if event.is_directory:
             return
@@ -223,8 +224,8 @@ class DaemonManager:
         self.failed_path = failed_path
 
         self.config = get_config()
-        self.processing_queue = Queue()
-        self.processed_files = set()
+        self.processing_queue: "Queue[Path]" = Queue()
+        self.processed_files: "set[str]" = set()
         self.is_running = False
         self.shutdown_event = threading.Event()
 
@@ -259,13 +260,13 @@ class DaemonManager:
             extra={"inbox_path": str(inbox_path)},
         )
 
-    def signal_handler(self, signum, frame):
+    def signal_handler(self, signum: int, frame: Any) -> None:
         """Handle shutdown signals (SIGTERM, SIGINT)."""
         signal_name = signal.Signals(signum).name
         logger.info(f"Received {signal_name}, initiating graceful shutdown...")
         self.shutdown()
 
-    def process_existing_files(self):
+    def process_existing_files(self) -> None:
         """Process any existing PDF files in inbox at startup."""
         pdf_files = sorted(self.inbox_path.glob("*.pdf"))
 
@@ -287,7 +288,7 @@ class DaemonManager:
                         },
                     )
 
-    def process_queue(self):
+    def process_queue(self) -> None:
         """Process files from queue (runs in separate thread)."""
         while self.is_running or not self.processing_queue.empty():
             try:
@@ -363,7 +364,7 @@ class DaemonManager:
 
         logger.info("Processing queue thread terminated")
 
-    def start(self):
+    def start(self) -> None:
         """Start the daemon."""
         if self.is_running:
             logger.warning("Daemon already running")
@@ -404,7 +405,7 @@ class DaemonManager:
             logger.info("KeyboardInterrupt received")
             self.shutdown()
 
-    def shutdown(self):
+    def shutdown(self) -> None:
         """Gracefully shutdown the daemon."""
         if not self.is_running:
             return
@@ -441,7 +442,7 @@ class DaemonManager:
 
         logger.info("Daemon shutdown complete")
 
-    def run(self):
+    def run(self) -> None:
         """Run the daemon (convenience method)."""
         try:
             self.start()
@@ -451,7 +452,7 @@ class DaemonManager:
             sys.exit(1)
 
 
-def main():
+def main() -> None:
     """Main entry point for daemon."""
     config = get_config()
 

@@ -582,10 +582,10 @@ def validate_response(response_data: Dict[str, Any]) -> tuple[bool, list[str]]:
     try:
         jsonschema.validate(instance=response_data, schema=schema)
         return True, []
-    except jsonschema.ValidationError as exc:  # type: ignore[attr-defined]
+    except jsonschema.ValidationError as exc:
         path = ".".join(str(part) for part in exc.path)
         return False, [f"Validation error at {path or '<root>'}: {exc.message}"]
-    except jsonschema.SchemaError as exc:  # type: ignore[attr-defined]
+    except jsonschema.SchemaError as exc:
         return False, [f"Schema error: {exc.message}"]
 
 

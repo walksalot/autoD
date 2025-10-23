@@ -242,10 +242,14 @@ class EmbeddingGenerator:
 
         # Valid cache - return result
         logger.debug(f"DB cache hit for document {doc.id}")
+        # Extract embedding list from cached dict structure
+        assert doc.embedding_vector is not None
+        assert isinstance(doc.embedding_vector, dict)
+        embedding: List[float] = doc.embedding_vector["embedding"]
         return EmbeddingResult(
-            embedding=doc.embedding_vector,
+            embedding=embedding,
             model=doc.embedding_model,
-            dimensions=len(doc.embedding_vector),
+            dimensions=len(embedding),
             input_tokens=0,  # Not tracked in cache
             cached=True,
             cache_key=doc.embedding_cache_key,
@@ -261,7 +265,7 @@ class EmbeddingGenerator:
         if not self.session:
             return
 
-        doc.embedding_vector = result.embedding
+        doc.embedding_vector = {"embedding": result.embedding}
         doc.embedding_cache_key = result.cache_key
         doc.embedding_model = result.model
         doc.embedding_generated_at = datetime.now(timezone.utc)

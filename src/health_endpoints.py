@@ -12,7 +12,7 @@ All endpoints target sub-100ms response times for efficient health monitoring.
 
 import logging
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Iterator
 from datetime import datetime
 from contextlib import contextmanager
 
@@ -78,7 +78,7 @@ def mark_initialization_complete() -> None:
 
 
 @contextmanager
-def timed_operation():
+def timed_operation() -> Iterator[None]:
     """Context manager to measure operation duration."""
     start = time.time()
     try:
@@ -190,8 +190,8 @@ def check_vector_store_health() -> DependencyStatus:
             healthy=vector_store is not None,
             response_time_ms=round(response_time_ms, 2),
             details={
-                "vector_store_name": vector_manager.vector_store_name,
-                "has_cached_id": vector_manager._vector_store_id is not None,
+                "vector_store_name": vector_manager.config.vector_store_name,
+                "has_cached_id": vector_manager.vector_store_id is not None,
             },
         )
     except Exception as e:
@@ -414,7 +414,7 @@ async def root() -> Dict[str, Any]:
 
 # Example standalone server (for development/testing)
 if __name__ == "__main__":
-    import uvicorn
+    import uvicorn  # type: ignore[import-not-found]
 
     # Mark initialization as complete for standalone testing
     mark_initialization_complete()

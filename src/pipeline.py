@@ -69,6 +69,7 @@ class ProcessingContext:
         vector_store_file_id: File ID inside vector store (if attached)
         vector_search_results: Similar document matches from File Search
         document_id: Database ID of created/updated document
+        audit_trail: Transaction audit information from PersistToDBStage
         error: Exception if stage failed
         failed_at_stage: Name of stage where failure occurred
         metrics: Dictionary of timing/performance metrics
@@ -101,6 +102,7 @@ class ProcessingContext:
 
     # Database (from PersistToDBStage)
     document_id: Optional[int] = None
+    audit_trail: Optional[Dict[str, Any]] = None
 
     # Error tracking
     error: Optional[Exception] = None

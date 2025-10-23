@@ -127,7 +127,7 @@ class TestMemoryCacheTier:
 
         # Second call - memory cache hit
         result2 = embedding_generator.generate_embedding(sample_document)
-        assert result2.cached 
+        assert result2.cached
         assert embedding_generator.memory_cache_hits == 1
         assert embedding_generator.api_calls == 1  # No additional API call
 
@@ -204,7 +204,7 @@ class TestDatabaseCacheTier:
 
         # Should hit database cache
         result2 = new_generator.generate_embedding(sample_document)
-        assert result2.cached 
+        assert result2.cached
         assert new_generator.db_cache_hits == 1
         assert new_generator.api_calls == 0
 
@@ -341,7 +341,7 @@ class TestCacheSizeManagement:
 
         session.commit()
 
-        assert cache_monitor.is_over_limit() 
+        assert cache_monitor.is_over_limit()
 
     def test_cleanup_oldest_entries(self, cache_monitor, session):
         """Cleanup should remove oldest entries until target size reached."""
@@ -532,7 +532,7 @@ class TestBatchCaching:
 
         # Should only call API for last 10
         assert embedding_generator.api_calls == 1  # 1 batch API call for 10 docs
-        assert len(results) == 20
+        assert len(_results) == 20
 
 
 class TestCacheIntegrationWithMonitoring:

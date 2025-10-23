@@ -301,11 +301,11 @@ if __name__ == "__main__":
         # Test with larger file (simulate 100MB PDF)
         large_test_file = Path(tempfile.mktemp(suffix=".pdf"))
         try:
-            with open(large_test_file, "wb") as f:
+            with open(large_test_file, "wb") as large_f:
                 # Write 100MB of data
                 chunk = b"x" * 8192
                 for _ in range(12800):  # 12800 * 8KB = 100MB
-                    f.write(chunk)
+                    large_f.write(chunk)
 
             import tracemalloc
 

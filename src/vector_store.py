@@ -106,7 +106,7 @@ class VectorStoreManager:
 
             try:
                 # Verify cached ID is still valid
-                vector_store = self.client.beta.vector_stores.retrieve(cached_id)
+                vector_store = self.client.beta.vector_stores.retrieve(cached_id)  # type: ignore[attr-defined]
                 self.vector_store_id = vector_store.id
                 print(f"✅ Using cached vector store: {vector_store.id}")
                 return vector_store
@@ -116,7 +116,7 @@ class VectorStoreManager:
 
         # Create new vector store
         print(f"📦 Creating new vector store: {self.config.vector_store_name}")
-        vector_store = self.client.beta.vector_stores.create(
+        vector_store = self.client.beta.vector_stores.create(  # type: ignore[attr-defined]
             name=self.config.vector_store_name
         )
 
@@ -217,7 +217,7 @@ class VectorStoreManager:
             )
 
             # Step 2: Add file to vector store
-            vector_store_file = self.client.beta.vector_stores.files.create(
+            vector_store_file = self.client.beta.vector_stores.files.create(  # type: ignore[attr-defined]
                 vector_store_id=self.vector_store_id,
                 file_id=file_obj.id,
             )
@@ -301,7 +301,7 @@ class VectorStoreManager:
                 )
 
             # Check file status
-            vs_file = self.client.beta.vector_stores.files.retrieve(
+            vs_file = self.client.beta.vector_stores.files.retrieve(  # type: ignore[attr-defined]
                 vector_store_id=self.vector_store_id,
                 file_id=vector_store_file_id,
             )
@@ -582,7 +582,7 @@ class VectorStoreManager:
 
         try:
             # List all files in vector store
-            files = self.client.beta.vector_stores.files.list(
+            files = self.client.beta.vector_stores.files.list(  # type: ignore[attr-defined]
                 vector_store_id=self.vector_store_id
             )
 
