@@ -3,7 +3,7 @@ OpenAI Responses API client with retry logic and circuit breaker.
 Implements exponential backoff and error handling for production use.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, cast
 import time
 import json
 from openai import OpenAI, APIConnectionError
@@ -41,7 +41,7 @@ class CircuitBreaker:
         self.last_failure_time: Optional[float] = None
         self.state = "CLOSED"
 
-    def call(self, func, *args, **kwargs):
+    def call(self, func: Any, *args: Any, **kwargs: Any) -> Any:
         """
         Execute function through circuit breaker.
 
@@ -56,7 +56,10 @@ class CircuitBreaker:
             Exception: If circuit is OPEN or function fails
         """
         if self.state == "OPEN":
-            if time.time() - self.last_failure_time >= self.timeout:
+            if (
+                self.last_failure_time is not None
+                and time.time() - self.last_failure_time >= self.timeout
+            ):
                 self.state = "HALF_OPEN"
                 logger.info("Circuit breaker entering HALF_OPEN state")
             else:
@@ -72,7 +75,7 @@ class CircuitBreaker:
             self._on_failure()
             raise e
 
-    def _on_success(self):
+    def _on_success(self) -> None:
         """Reset circuit breaker on successful call."""
         if self.state == "HALF_OPEN":
             self.state = "CLOSED"
@@ -80,7 +83,7 @@ class CircuitBreaker:
 
         self.failure_count = 0
 
-    def _on_failure(self):
+    def _on_failure(self) -> None:
         """Record failure and potentially open circuit."""
         self.failure_count += 1
         self.last_failure_time = time.time()
@@ -179,11 +182,12 @@ class ResponsesAPIClient:
                 timeout=self.config.api_timeout_seconds,
             )
         except requests.RequestException as exc:
-            raise APIConnectionError(message=str(exc)) from exc
+            raise APIConnectionError(request=None, message=str(exc)) from exc  # type: ignore[arg-type]
 
         if 500 <= response.status_code < 600:
             raise APIConnectionError(
-                message=f"Server error {response.status_code}: {response.text}"
+                request=None,  # type: ignore[arg-type]
+                message=f"Server error {response.status_code}: {response.text}",
             )
 
         if response.status_code >= 400:
@@ -195,7 +199,7 @@ class ResponsesAPIClient:
             raise ValueError(f"OpenAI API error {response.status_code}: {message}")
 
         logger.info("API call successful (requests fallback)")
-        return response.json()
+        return cast(Dict[str, Any], response.json())
 
     def create_response(
         self,
@@ -216,11 +220,12 @@ class ResponsesAPIClient:
             Exception: If request fails after retries
         """
         if use_circuit_breaker:
-            return self.circuit_breaker.call(
-                self._call_responses_api_with_retry, payload
+            return cast(
+                Dict[str, Any],
+                self.circuit_breaker.call(self._call_responses_api_with_retry, payload),
             )
         else:
-            return self._call_responses_api_with_retry(payload)
+            return cast(Dict[str, Any], self._call_responses_api_with_retry(payload))
 
     def extract_output_text(self, response: Dict[str, Any]) -> str:
         """
@@ -246,9 +251,9 @@ class ResponsesAPIClient:
             content_parts = item.get("content", [])
             for part in content_parts:
                 if part.get("type") in {"output_text", "text"}:
-                    return part.get("text", "")
+                    return cast(str, part.get("text", ""))
                 if part.get("type") == "output_json_schema":
-                    return part.get("json_schema", "")
+                    return cast(str, part.get("json_schema", ""))
 
         raise ValueError("No content in output")
 

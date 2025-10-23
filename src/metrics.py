@@ -51,7 +51,7 @@ class PrometheusExporter:
         },
     }
 
-    def __init__(self, metrics_collector=None):
+    def __init__(self, metrics_collector: Optional[Any] = None) -> None:
         """
         Initialize Prometheus exporter.
 
@@ -117,7 +117,7 @@ class PrometheusExporter:
         Returns:
             Prometheus-formatted text
         """
-        lines = []
+        lines: List[str] = []
 
         # Get all metrics from collector
         all_metrics = self.collector.metrics
@@ -293,7 +293,7 @@ class PrometheusExporter:
         )
 
         # Group by stage
-        errors_by_stage = defaultdict(int)
+        errors_by_stage: Dict[str, int] = defaultdict(int)
         for metric in error_metrics:
             stage = metric.labels.get("stage", "unknown")
             errors_by_stage[stage] += 1
@@ -436,7 +436,7 @@ class PrometheusExporter:
         )
 
         # Group by stage
-        errors_by_stage = defaultdict(int)
+        errors_by_stage: Dict[str, int] = defaultdict(int)
         for metric in error_metrics:
             stage = metric.labels.get("stage", "unknown")
             errors_by_stage[stage] += 1

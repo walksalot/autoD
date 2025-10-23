@@ -90,7 +90,7 @@ def calculate_cost(
     completion_tokens: int,
     cached_tokens: int = 0,
     model: str = "gpt-5-mini",
-) -> Dict[str, float]:
+) -> Dict[str, Any]:
     """
     Calculate cost for API call.
 
@@ -208,7 +208,13 @@ if __name__ == "__main__":
 
     # Test 2: Estimate prompt tokens
     print("\nTest 2: Estimate prompt tokens")
-    user_prompt = build_user_prompt("test.pdf", 1)
+    from datetime import datetime, timezone
+
+    user_prompt = build_user_prompt(
+        processed_at=datetime.now(timezone.utc).isoformat(),
+        original_file_name="test.pdf",
+        page_count=1,
+    )
 
     estimates = estimate_prompt_tokens(
         SYSTEM_PROMPT, DEVELOPER_PROMPT, user_prompt, "gpt-5-mini"

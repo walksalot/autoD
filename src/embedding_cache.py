@@ -216,10 +216,11 @@ class CacheMonitor:
             Estimated cache size in MB
         """
         # Count documents with cached embeddings
-        count = (
+        count = int(
             self.session.query(func.count(Document.id))
             .filter(Document.embedding_vector.isnot(None))
             .scalar()
+            or 0
         )
 
         # Estimate size (12.5 KB per document)
@@ -232,7 +233,7 @@ class CacheMonitor:
             f"(estimated {bytes_per_doc} bytes/doc)"
         )
 
-        return size_mb
+        return float(size_mb)
 
     def is_over_limit(self) -> bool:
         """
@@ -261,13 +262,14 @@ class CacheMonitor:
         """
         cutoff = datetime.now(timezone.utc) - timedelta(days=self.ttl_days)
 
-        count = (
+        count = int(
             self.session.query(func.count(Document.id))
             .filter(
                 Document.embedding_vector.isnot(None),
                 Document.embedding_generated_at < cutoff,
             )
             .scalar()
+            or 0
         )
 
         return count

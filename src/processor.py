@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 _logger_configured = False
 
 
-def _ensure_logging():
+def _ensure_logging() -> None:
     """Ensure logging is configured (called lazily on first use)."""
     global _logger_configured
     if not _logger_configured:
@@ -270,15 +270,15 @@ def process_document(
                     extra={"correlation_id": correlation_id},
                 )
                 metadata_attrs = build_vector_store_attributes(doc)
-                file_id = vector_manager.add_file_to_vector_store(
+                upload_result = vector_manager.add_file_to_vector_store(
                     file_path, metadata_attrs
                 )
 
-                if file_id:
-                    doc.vector_store_file_id = file_id
+                if upload_result.vector_store_file_id:
+                    doc.vector_store_file_id = upload_result.vector_store_file_id
                     session.commit()
                     logger.info(
-                        f"Vector store file ID: {file_id}",
+                        f"Vector store file ID: {upload_result.vector_store_file_id}",
                         extra={"correlation_id": correlation_id},
                     )
             except Exception as e:
@@ -370,7 +370,7 @@ def process_inbox(
     logger.info(f"Found {len(pdf_files)} PDF files")
 
     # Process files
-    results = {
+    results: Dict[str, Any] = {
         "total_files": len(pdf_files),
         "processed": 0,
         "failed": 0,
