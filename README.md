@@ -11,7 +11,27 @@
 
 Paper Autopilot continuously monitors your scanner's inbox folder and automatically processes PDFs as they arrive. No manual intervention needed - just scan your documents and let the autopilot handle the rest.
 
-## What's New (Wave 2 - October 2025)
+## What's New
+
+### Week 3 - Vector Store Observability (January 2025)
+
+**Observability:**
+- Real-time cost tracking ($0.10/GB/day after 1GB free tier)
+- Performance metrics (P50/P95/P99 search latency)
+- Upload success rate monitoring (target >95%)
+- Structured JSON logging with embedded metrics
+
+**Documentation:**
+- ADR-030: Vector Store Integration (458 lines)
+- Complete usage guide (683 lines) with troubleshooting
+- Cost management strategies and optimization tips
+
+**Discovery:**
+- Phase 4 (Error Handling) already complete from Wave 1 ✓
+- CompensatingTransaction pattern with LIFO rollback
+- 30 tests (100% passing) for transaction safety
+
+### Wave 2 - Type Safety & Cache (October 2025)
 
 **Type Safety:**
 - 100% type annotation coverage with MyPy strict mode
@@ -27,9 +47,9 @@ Paper Autopilot continuously monitors your scanner's inbox folder and automatica
 **Quality:**
 - 41 new cache tests (unit + integration + performance)
 - Property-based testing with Hypothesis framework
-- 3 new ADRs documenting technical decisions
+- 6 new ADRs documenting technical decisions (ADR-027 through ADR-030)
 
-See [CHANGELOG.md](CHANGELOG.md) for full details.
+See [CHANGELOG.md](docs/CHANGELOG.md) for full details.
 
 ## What It Does
 
