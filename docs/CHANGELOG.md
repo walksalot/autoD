@@ -244,24 +244,22 @@ if manager.metrics.estimate_daily_cost() > 0.50:  # $15/month threshold
 - Custom chunking strategy (currently fixed 800-token chunks)
 - Multi-store sharding patterns (needed at >10K files)
 
-### Next Steps: Phase 4
+### Phase 4: Error Handling - ALREADY COMPLETE ✅
 
-**Phase 4.1: CompensatingTransactionContext** (4-5 hours)
-- Complete __enter__, __exit__, rollback methods
-- Add pre-built handler factories (delete_file, remove_from_vector_store, delete_database_record)
-- Integrate with VectorStoreManager.upload_document()
-- Write unit tests for transaction lifecycle
+**Discovery:** Phase 4 (Error Handling with Compensating Transactions) was **already implemented during Wave 1** (October 2025) as part of the TD1 (Error Handling Consolidation) workstream.
 
-**Phase 4.2: Error Handling Documentation** (1-2 hours)
-- Write ADR-031 (Error Handling & Transactions)
-- Create docs/guides/error_handling.md
+**Existing Implementation:**
+- `src/transactions.py` (616 lines) - CompensatingTransaction class with LIFO rollback
+- `docs/adr/0002-standardized-error-handling-with-compensating-transactions.md` (399 lines)
+- `tests/unit/test_transactions.py` (18 tests, 100% passing)
+- `tests/integration/test_error_recovery.py` (12 tests, 100% passing)
+- Pre-built handlers: `create_files_api_rollback_handler()`, `create_vector_store_rollback_handler()`
 
-**Phase 4.3: Integration Testing** (2-3 hours)
-- Write tests/integration/test_transactions.py
-- Write tests/integration/test_vector_store_transactions.py
+**Impact:** Week 3 Phase 4 work (originally estimated 7-10 hours) was skipped. Proceeded directly to Phase 5 (Session Documentation + Validation).
 
-**Total Phase 4 Scope:** 7-10 hours
-**Target Completion:** 2025-01-24
+**See Also:**
+- CHANGELOG entry for Wave 1 TD1 (lines 23-40)
+- docs/sessions/2025-01-23-week3-vector-store-observability.md (Phase 4 discovery section)
 
 ---
 

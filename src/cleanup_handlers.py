@@ -116,7 +116,7 @@ def cleanup_vector_store_upload(
 
 
 def cleanup_multiple_resources(
-    cleanup_fns: List[Tuple[str, Callable[[], None]]]
+    cleanup_fns: List[Tuple[str, Callable[[], None]]],
 ) -> None:
     """
     Execute multiple cleanup functions in LIFO order (reverse).

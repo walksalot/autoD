@@ -94,6 +94,20 @@ milestones:
       - 3 new ADRs (ADR-027, ADR-028, ADR-029) ✓
       - Clean merge to main (integration/wave2) ✓
 
+  - name: Week 3 (New Plan) - Vector Store Observability
+    status: complete
+    completion_date: 2025-01-23
+    dependencies: [Wave 2 - Type Safety + Cache Optimization]
+    deliverables:
+      - Phase 3.1: Vector Store Responses API Integration ✓
+      - Phase 3.2: VectorStoreMetrics with cost tracking ✓
+      - Phase 3.3: ADR-030 + Usage Guide (1,141 lines docs) ✓
+      - Phase 4: DISCOVERED ALREADY COMPLETE (Wave 1 TD1) ✓
+      - Cost estimation ($0.10/GB/day after 1GB free) ✓
+      - Performance metrics (P50/P95/P99 latency tracking) ✓
+      - Structured JSON logging with metrics ✓
+      - Session documentation (Week 3) ✓
+
   - name: Week 4 - Production Ready
     status: pending
     target_date: 2025-11-13
@@ -284,6 +298,20 @@ completed_tasks:
       - ADR-028: LRU Cache with SHA-256 Keys
       - ADR-029: Separate Cache Module (Non-Invasive Integration)
       - Clean merge from integration/wave2 to main (36 files, 3,927 insertions)
+
+  - name: Week 3 (New Plan) - Vector Store Observability
+    completion_date: 2025-01-23
+    deliverable: |
+      Vector Store observability infrastructure and documentation
+      - Phase 3.1: Responses API hybrid search integration (commit 291b85a)
+      - Phase 3.2: VectorStoreMetrics dataclass with cost tracking (~150 lines)
+      - Phase 3.3: ADR-030 (458 lines) + Usage Guide (683 lines)
+      - Cost estimation: $0.10/GB/day after 1GB free tier
+      - Performance metrics: P50/P95/P99 latency tracking
+      - Structured JSON logging with metrics embedded
+      - Phase 4 Discovery: Error handling already complete from Wave 1 TD1
+      - Session documentation: docs/sessions/2025-01-23-week3-vector-store-observability.md
+      - Total: ~1,550 lines added (150 code + 1,400 docs)
 
 metrics:
   documentation:
